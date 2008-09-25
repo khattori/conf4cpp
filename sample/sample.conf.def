@@ -1,0 +1,12 @@
+enum proto_t { TCP, UDP, ICMP }
+
+config SampleConf
+{
+	required foo: int[range(0,100)];
+	optional doTest = false : bool
+	         proto = TCP : proto_t;
+	         addr  = "0.0.0.0", 1000 : string, uint;
+		 BList = {} : vector<bool>[length<10]
+	list<pair<int,bool>> test;
+}
+

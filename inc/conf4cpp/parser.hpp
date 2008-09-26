@@ -48,15 +48,13 @@ namespace conf4cpp
 	    }
 	}
 	void operator() (pair<int, type_t> tp) const {
-	    assert(is_vector(v_));
-	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
+	    vector<var_t> vec = var2vector(v_);
 	    if (tp.first > 0) assert(tp.first == vec.size());
 	    for (unsigned int i = 0; i < vec.size(); i++)
 		apply_visitor(tychk_visitor(vec[i]), tp.second);
 	}
 	void operator() (vector<type_t> tv) const {
-	    assert(is_vector(v_));
-	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
+	    vector<var_t> vec = var2vector(v_);
 	    assert(vec.size() == tv.size());
 	    for (unsigned int i = 0; i < tv.size(); i++)
 		apply_visitor(tychk_visitor(vec[i]), tv[i]);
@@ -68,17 +66,24 @@ namespace conf4cpp
     struct type_check {
 	typedef void result_type;
 	type_check(tyinfo_map_t tm) : tm_(tm) {}
-	void operator()(int n, const var_t& v) { apply_visitor(tychk_visitor(v), tm_[n]); }
+	void operator()(int n, const var_t& v) {
+	    vector<var_t> vec = var2vector(v);
+	    if (vec.size() == 1) apply_visitor(tychk_visitor(vec[0]), tm_[n]);
+	    else apply_visitor(tychk_visitor(vec), tm_[n]);
+	}
 	tyinfo_map_t tm_;
     };
     struct store_value {
 	typedef void result_type;
 	store_value(value_map_t& vm) : vm_(vm) {}
-	void operator()(int n, const var_t& v) const { vm_[n] = v; }
+	void operator()(int n, const var_t& v) const {
+	    vector<var_t> vec = var2vector(v);
+	    if (vec.size() == 1) vm_[n] = vec[0];
+	    else vm_[n] = v;
+	}
 	value_map_t &vm_;
     };
     var_t add_value(var_t& v1, const var_t& v2) {
-	assert(is_vector(v1));
 	vector<var_t> v = var2vector(v1); v.push_back(v2); return v;
     }
 
@@ -110,21 +115,19 @@ namespace conf4cpp
 		    config_r
 			= *item_r;
 		    item_r
-			= keywords_p[item_r.val = arg1] >> '=' >>
-			value_r
-//			[type_check(self.timap,item_r.val,arg1)]
-			[phoenix::bind(type_check(self.timap))(item_r.val,arg1)]
-			[phoenix::bind(store_value(self.vmap))(item_r.val,arg1)]
-			>> ';';
+			= keywords_p[item_r.val = arg1]
+			    >> '='
+			    >> value_r[phoenix::bind(type_check(self.timap))(item_r.val,arg1)][phoenix::bind(store_value(self.vmap))(item_r.val,arg1)] >> ';';
 		    value_r
-			= atomic_value_r[value_r.val = arg1] >> *(',' >> atomic_value_r[value_r.val = phoenix::bind(&add_value)(value_r.val,arg1)]);
+			= atomic_value_r[value_r.val = construct_<vector<var_t> >(1, arg1)]
+			    >> *(',' >> atomic_value_r[value_r.val = phoenix::bind(&add_value)(value_r.val,arg1)]);
 		    atomic_value_r
 			= 
 			strict_real_p	[atomic_value_r.val = arg1]
 			| int_p		[atomic_value_r.val = arg1]
 			| bool_r	[atomic_value_r.val = arg1]
 			| string_r	[atomic_value_r.val = arg1]
-			| '{' >> !value_r[atomic_value_r.val = arg1] >> '}'
+			| ch_p('{')[atomic_value_r.val = construct_<vector<var_t> >()] >> !value_r[atomic_value_r.val = arg1] >> '}'
 			//	| '{' >> *item_r >> '}'
 			| constvals_p	[atomic_value_r.val = arg1];
 

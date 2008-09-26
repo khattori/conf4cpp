@@ -25,7 +25,7 @@ namespace conf4cpp
 	    derived_config_parser_T g(vm_);
 
 	    parse_info<iterator_t> pinfo = parse(first, last, g, (eol_p[newln])|space_p|comment_p("#"));
-	    if (!pinfo.full) parse_error(linfo.lnum_);
+	    if (!pinfo.full) throw parse_error(linfo.lnum_);
 	}
     protected:
 	value_map_t vm_;

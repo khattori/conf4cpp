@@ -23,12 +23,6 @@ namespace conf4cpp
 	vector<boost::recursive_variant_>
     >::type var_t;
 
-    inline int           var2int   (const var_t &v) { return boost::get<int>(v);            }
-    inline double        var2double(const var_t &v) { return boost::get<double>(v);         }
-    inline string        var2string(const var_t &v) { return boost::get<string>(v);         }
-    inline bool          var2bool  (const var_t &v) { return boost::get<bool>(v);           }
-    inline vector<var_t> var2vector(const var_t &v) { return boost::get<vector<var_t> >(v); }
-
     enum {
 	IS_BOOL,
 	IS_INT,
@@ -42,6 +36,13 @@ namespace conf4cpp
     inline bool is_double (const var_t& v) { return v.which() == IS_DOUBLE; }
     inline bool is_string (const var_t& v) { return v.which() == IS_STRING; }
     inline bool is_vector (const var_t& v) { return v.which() == IS_VECTOR; }
+
+    inline bool          var2bool  (const var_t &v) { assert(is_bool(v));   return boost::get<bool>(v);           }
+    inline int           var2int   (const var_t &v) { assert(is_int(v));    return boost::get<int>(v);            }
+    inline double        var2double(const var_t &v) { assert(is_double(v)); return boost::get<double>(v);         }
+    inline string        var2string(const var_t &v) { assert(is_string(v)); return boost::get<string>(v);         }
+    inline vector<var_t> var2vector(const var_t &v) { assert(is_vector(v)); return boost::get<vector<var_t> >(v); }
+
 }
 
 #endif /* VAR_HPP */

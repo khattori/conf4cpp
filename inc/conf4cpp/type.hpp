@@ -20,15 +20,19 @@ namespace conf4cpp
 	TI_DOUBLE,
 	TI_STRING
     } ti_atomic_t;
-
+    struct ti_enum_t {
+	ti_enum_t(int eid_) : eid(eid_) {}
+	int eid;
+    };
     typedef boost::make_recursive_variant<
 	ti_atomic_t,
+	ti_enum_t,                              // enum type
 	pair<int, boost::recursive_variant_>,   // vector type 
 	vector<boost::recursive_variant_>       // tuple type
     >::type type_t;
 
-    bool is_atomic_type(const type_t& typ) { return typ.which() == 0; }
-    bool is_compound_type(const type_t& typ) { return typ.which() != 0; }
+    inline bool is_prim_type(const type_t& typ) { return typ.which() < 2; }
+    inline bool is_comp_type(const type_t& typ) { return !is_prim_type(typ); }
 }
 
 #endif /* TYPE_HPP */

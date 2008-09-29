@@ -16,8 +16,8 @@ using namespace boost::spirit;
 namespace conf4cpp
 {
 
-    typedef map<int, type_t> tyinfo_map_t;
-    typedef map<int, var_t> value_map_t;
+    typedef map<string, type_t> tyinfo_map_t;
+    typedef map<string, var_t> value_map_t;
 
     struct tychk_visitor : public boost::static_visitor<error_t>
     {
@@ -33,10 +33,15 @@ namespace conf4cpp
 	    }
 	    return type_mismatch;
 	}
+	error_t operator() (ti_enum_t te) const {
+	    if (!is_pair(v_)) return type_mismatch;
+	    pair<int,int> p = var2pair(v_);
+	    if (p.first != te.eid) return type_mismatch;
+	    return error_none;
+	}
 	error_t operator() (pair<int, type_t> tp) const {
 	    if (!is_vector(v_)) return type_mismatch;
 	    vector<var_t> vec = var2vector(v_);
-	    cout << "operator(pair<int, type_t>)" << vec.size() << "," << tp.first << endl;
 	    if (tp.first > 0 && tp.first != vec.size()) return invalid_length;
 	    for (unsigned int i = 0; i < vec.size(); i++) {
 		error_t err;
@@ -48,7 +53,6 @@ namespace conf4cpp
 	error_t operator() (vector<type_t> tv) const {
 	    if (!is_vector(v_)) return type_mismatch;
 	    vector<var_t> vec = var2vector(v_);
-	    cout << "operator(vector<type_t>)" << vec.size() << "," << tv.size() << endl;
 	    if (vec.size() != tv.size()) return type_mismatch;
 	    for (unsigned int i = 0; i < tv.size(); i++) {
 		error_t err;
@@ -62,24 +66,24 @@ namespace conf4cpp
     struct store_value {
 	typedef error_t result_type;
 	store_value(tyinfo_map_t tm, value_map_t& vm) : tm_(tm), vm_(vm) {}
-	error_t operator()(int n, const var_t& v) {
+	error_t operator()(const string& kw, const var_t& v) {
 	    vector<var_t> vec = var2vector(v);	    
-	    type_t typ = tm_[n];
+	    type_t typ = tm_[kw];
 	    error_t err;
-	    if (is_atomic_type(typ)) {
+	    if (is_prim_type(typ)) {
 		if (vec.size() != 1) return type_mismatch;
 		if ((err = apply_visitor(tychk_visitor(vec[0]), typ)) != error_none)
 		    return err;
-		vm_[n] = vec[0];
+		vm_[kw] = vec[0];
 	    } else {
 		if (vec.size() == 1 && is_vector(vec[0])) {
 		    if ((err = apply_visitor(tychk_visitor(vec[0]), typ)) != error_none)
 			return err;
-		    vm_[n] = vec[0];
+		    vm_[kw] = vec[0];
 		} else {
 		    if ((err = apply_visitor(tychk_visitor(v), typ)) != error_none)
 			return err;
-		    vm_[n] = v;
+		    vm_[kw] = v;
 		}
 	    }
 	    return error_none;
@@ -98,7 +102,7 @@ namespace conf4cpp
 
     struct variant_val : closure<variant_val, var_t>  { member1 val; };
     struct string_val  : closure<string_val,  string> { member1 val; };
-    struct item_val    : closure<item_val, int, error_t> { member1 kwid; member2 err;};
+    struct item_val    : closure<item_val, string, error_t> { member1 kwid; member2 err;};
 
     template <typename derived_T>
     struct base_config_parser : public grammar<base_config_parser<derived_T> >

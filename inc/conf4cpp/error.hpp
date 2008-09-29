@@ -9,7 +9,6 @@
 #include <string>
 #include <exception>
 #include <boost/lexical_cast.hpp>
-#include <conf4cpp/type.hpp>
 
 using namespace std;
 
@@ -17,43 +16,37 @@ namespace conf4cpp
 {
     enum error_t {
 	error_none,
+	file_error,
+	parse_error,
 	invalid_length,
 	type_mismatch,
+	item_redefined,
+	item_undefined,
     };
-
-    class file_error : public exception
+    const char *err2str(error_t err) {
+	static const char* tbl[] = {
+	    "no error",
+	    "file error",
+	    "parse error",
+	    "invalid length",
+	    "type mismatch",
+	    "item redefined",
+	    "item undefined",
+	};
+	return tbl[err];
+    }
+    class error : public exception
     {
     public:
-	file_error(const string& fname, const string& reason) throw()
-	    : fname_(fname), reason_(reason), msg_(reason_ + ": " + fname_) {}
-	virtual ~file_error() throw() {}
-	const char* what() const throw() { return msg_.c_str();	}
-    private:
-	const string fname_;
-	const string reason_;
-	const string msg_;
-    };
-
-    class parse_error : public exception
-    {
-    public:
-	parse_error(int line) throw() : line_(line), msg_("parse error at line: " + boost::lexical_cast<string>(line_)) {}
-	virtual ~parse_error() throw() {}
+	error(error_t err) throw()
+	    : msg_(err2str(err)) {}
+	error(error_t err, int line) throw()
+	    : msg_(string(err2str(err)) + " at line: " +  boost::lexical_cast<string>(line)) {}
+	error(error_t err, string item) throw()
+	    : msg_(string(err2str(err)) + ": " +  item) {}
+	virtual ~error() throw() {}
 	const char* what() const throw() { return msg_.c_str(); }
     private:
-	const int line_;
-	const string msg_;
-    };
-
-    class type_error : public exception
-    {
-    public:
-	type_error(int line) throw()
-	    : line_(line), msg_("type mismatch at line: " +  boost::lexical_cast<string>(line_)) {}
-	virtual ~type_error() throw() {}
-	const char* what() const throw() { return msg_.c_str(); }
-    private:
-	const int line_;
 	const string msg_;
     };
 }

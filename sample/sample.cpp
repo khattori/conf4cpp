@@ -98,6 +98,10 @@ struct MyConfigParser : public base_config_parser<MyConfigParser>
     };
 
     MyConfigParser(value_map_t& vmap_) : base_config_parser<MyConfigParser>(vmap_) {
+	reqs.push_back("foo");
+	reqs.push_back("bar");
+	reqs.push_back("baz");
+
 	timap["foo"] = TI_INT;
 	timap["bar"] = TI_BOOL;
 	timap["baz"] = TI_STRING;

@@ -25,7 +25,7 @@ namespace conf4cpp
 	    typedef file_iterator<char> file_iterator_t;
 
 	    file_iterator_t first(fname);
-	    if (!first) throw file_error(fname, "cannot open file");
+	    if (!first) throw error(file_error);
 	    file_iterator_t last = first.make_end();
 
 	    typedef position_iterator<file_iterator_t> position_iterator_t;
@@ -34,9 +34,12 @@ namespace conf4cpp
 	    begin.set_tabchars(8);
 	    try {
 		parse_info<position_iterator_t> pinfo = parse(begin, end, g, eol_p|space_p|comment_p("#"));
-		if (!pinfo.full) throw parse_error(pinfo.stop.get_position().line);
+		if (!pinfo.full) throw error(parse_error, pinfo.stop.get_position().line);
 	    } catch(boost::spirit::parser_error<error_t,position_iterator_t>& e) {
-		throw type_error(e.where.get_position().line);
+		throw error(e.descriptor, e.where.get_position().line);
+	    }
+	    for (unsigned int i = 0; i < g.reqs.size(); i++) {
+		if (vm_.find(g.reqs[i]) == vm_.end()) throw error(item_undefined, g.reqs[i]);
 	    }
 	}
 

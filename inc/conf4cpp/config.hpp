@@ -6,6 +6,7 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
 
+#include <conf4cpp/error.hpp>
 #include <conf4cpp/parser.hpp>
 
 namespace conf4cpp
@@ -14,21 +15,31 @@ namespace conf4cpp
     class base_config {
     public:
 	base_config(const string& fname) {
-	    typedef file_iterator<char> iterator_t;
-	    iterator_t begin(fname);
-
-	    if (!begin) throw file_error(fname, "can not open");
-	    iterator_t first = begin;
-	    iterator_t last = first.make_end();
-	    line_info<iterator_t> linfo(begin);
-	    new_line<iterator_t> newln(linfo);
 	    derived_config_parser_T g(vm_);
-
-	    parse_info<iterator_t> pinfo = parse(first, last, g, (eol_p[newln])|space_p|comment_p("#"));
-	    if (!pinfo.full) throw parse_error(linfo.lnum_);
+	    parse_config(fname, g);
 	}
     protected:
 	value_map_t vm_;
+    private:
+	void parse_config(const string& fname, const derived_config_parser_T& g) {
+	    typedef file_iterator<char> file_iterator_t;
+
+	    file_iterator_t first(fname);
+	    if (!first) throw file_error(fname, "cannot open file");
+	    file_iterator_t last = first.make_end();
+
+	    typedef position_iterator<file_iterator_t> position_iterator_t;
+	    position_iterator_t begin(first, last, fname);
+	    position_iterator_t end;
+	    begin.set_tabchars(8);
+	    try {
+		parse_info<position_iterator_t> pinfo = parse(begin, end, g, eol_p|space_p|comment_p("#"));
+		if (!pinfo.full) throw parse_error(pinfo.stop.get_position().line);
+	    } catch(boost::spirit::parser_error<error_t,position_iterator_t>& e) {
+		throw type_error(e.where.get_position().line);
+	    }
+	}
+
     };
 }
 

@@ -26,6 +26,9 @@ namespace conf4cpp
 	pair<int, boost::recursive_variant_>,   // vector type 
 	vector<boost::recursive_variant_>       // tuple type
     >::type type_t;
+
+    bool is_atomic_type(const type_t& typ) { return typ.which() == 0; }
+    bool is_compound_type(const type_t& typ) { return typ.which() != 0; }
 }
 
 #endif /* TYPE_HPP */

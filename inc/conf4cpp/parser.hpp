@@ -15,94 +15,105 @@ using namespace boost::spirit;
 
 namespace conf4cpp
 {
-    template <typename iterator_T>
-    struct line_info
-    {
-	line_info(iterator_T iter) : litr_(iter), lnum_(1) {}
-	iterator_T litr_;
-	size_t lnum_;
-    };
 
-    template <typename iterator_T>
-    struct new_line
-    {
-	new_line(line_info<iterator_T>& info) : linf_(info) {}
-	void operator()(iterator_T first, iterator_T last) const {
-	    linf_.litr_ = last;
-	    linf_.lnum_++;
-	}
-	line_info<iterator_T>& linf_;
-    }; 
+    typedef map<int, type_t> tyinfo_map_t;
+    typedef map<int, var_t> value_map_t;
 
-    struct tychk_visitor : public boost::static_visitor<>
+    struct tychk_visitor : public boost::static_visitor<error_t>
     {
 	var_t v_;
 	tychk_visitor(const var_t& v) : v_(v) {}
-	void operator() (ti_atomic_t ta) const {
+	error_t operator() (ti_atomic_t ta) const {
 	    switch (ta) {
-	    case TI_BOOL:   assert(is_bool(v_));   break;
-	    case TI_INT:    assert(is_int(v_));    break;
-	    case TI_DOUBLE: assert(is_double(v_)); break;
-	    case TI_STRING: assert(is_string(v_)); break;
+	    case TI_BOOL:   if (is_bool(v_))   return error_none; break;
+	    case TI_INT:    if (is_int(v_))    return error_none; break;
+	    case TI_DOUBLE: if (is_double(v_)) return error_none; break;
+	    case TI_STRING: if (is_string(v_)) return error_none; break;
 	    default: assert(false);
 	    }
+	    return type_mismatch;
 	}
-	void operator() (pair<int, type_t> tp) const {
+	error_t operator() (pair<int, type_t> tp) const {
+	    if (!is_vector(v_)) return type_mismatch;
 	    vector<var_t> vec = var2vector(v_);
-	    if (tp.first > 0) assert(tp.first == vec.size());
-	    for (unsigned int i = 0; i < vec.size(); i++)
-		apply_visitor(tychk_visitor(vec[i]), tp.second);
+	    cout << "operator(pair<int, type_t>)" << vec.size() << "," << tp.first << endl;
+	    if (tp.first > 0 && tp.first != vec.size()) return invalid_length;
+	    for (unsigned int i = 0; i < vec.size(); i++) {
+		error_t err;
+		if ((err = apply_visitor(tychk_visitor(vec[i]), tp.second)) != error_none)
+		    return err;
+	    }
+	    return error_none;
 	}
-	void operator() (vector<type_t> tv) const {
+	error_t operator() (vector<type_t> tv) const {
+	    if (!is_vector(v_)) return type_mismatch;
 	    vector<var_t> vec = var2vector(v_);
-	    assert(vec.size() == tv.size());
-	    for (unsigned int i = 0; i < tv.size(); i++)
-		apply_visitor(tychk_visitor(vec[i]), tv[i]);
+	    cout << "operator(vector<type_t>)" << vec.size() << "," << tv.size() << endl;
+	    if (vec.size() != tv.size()) return type_mismatch;
+	    for (unsigned int i = 0; i < tv.size(); i++) {
+		error_t err;
+		if ((err = apply_visitor(tychk_visitor(vec[i]), tv[i])) != error_none)
+		    return err;
+	    }
+	    return error_none;
 	}
     };
  
-    typedef map<int, type_t> tyinfo_map_t;
-    typedef map<int, var_t> value_map_t;
-    struct type_check {
-	typedef void result_type;
-	type_check(tyinfo_map_t tm) : tm_(tm) {}
-	void operator()(int n, const var_t& v) {
-	    vector<var_t> vec = var2vector(v);
-	    if (vec.size() == 1) apply_visitor(tychk_visitor(vec[0]), tm_[n]);
-	    else apply_visitor(tychk_visitor(vec), tm_[n]);
-	}
-	tyinfo_map_t tm_;
-    };
     struct store_value {
-	typedef void result_type;
-	store_value(value_map_t& vm) : vm_(vm) {}
-	void operator()(int n, const var_t& v) const {
-	    vector<var_t> vec = var2vector(v);
-	    if (vec.size() == 1) vm_[n] = vec[0];
-	    else vm_[n] = v;
+	typedef error_t result_type;
+	store_value(tyinfo_map_t tm, value_map_t& vm) : tm_(tm), vm_(vm) {}
+	error_t operator()(int n, const var_t& v) {
+	    vector<var_t> vec = var2vector(v);	    
+	    type_t typ = tm_[n];
+	    error_t err;
+	    if (is_atomic_type(typ)) {
+		if (vec.size() != 1) return type_mismatch;
+		if ((err = apply_visitor(tychk_visitor(vec[0]), typ)) != error_none)
+		    return err;
+		vm_[n] = vec[0];
+	    } else {
+		if (vec.size() == 1 && is_vector(vec[0])) {
+		    if ((err = apply_visitor(tychk_visitor(vec[0]), typ)) != error_none)
+			return err;
+		    vm_[n] = vec[0];
+		} else {
+		    if ((err = apply_visitor(tychk_visitor(v), typ)) != error_none)
+			return err;
+		    vm_[n] = v;
+		}
+	    }
+	    return error_none;
 	}
 	value_map_t &vm_;
+	tyinfo_map_t tm_;
     };
-    var_t add_value(var_t& v1, const var_t& v2) {
-	vector<var_t> v = var2vector(v1); v.push_back(v2); return v;
-    }
+    struct check_value {
+	typedef void result_type;
+	template<typename IteratorT>
+	void operator()(error_t err, const IteratorT& where) {
+	    if (err != error_none) throw_(where, err);
+	}
+    };
+    var_t add_value(var_t& v1, const var_t& v2) { vector<var_t> v = var2vector(v1); v.push_back(v2); return v; }
 
     struct variant_val : closure<variant_val, var_t>  { member1 val; };
     struct string_val  : closure<string_val,  string> { member1 val; };
-    struct int_val     : closure<int_val, int>        { member1 val; };
+    struct item_val    : closure<item_val, int, error_t> { member1 kwid; member2 err;};
 
     template <typename derived_T>
     struct base_config_parser : public grammar<base_config_parser<derived_T> >
     {
-	base_config_parser(value_map_t& vmap_) : vmap(vmap_) {}
+	base_config_parser(value_map_t& vm) : vmap(vm) {}
+
 	tyinfo_map_t timap;
 	value_map_t& vmap;
+
 	template <typename ScannerT> struct definition
 	{
 	    rule<ScannerT> config_r;
 	    rule<ScannerT, variant_val::context_t> value_r, atomic_value_r, bool_r;
 	    rule<ScannerT, string_val::context_t> string_r;
-	    rule<ScannerT, int_val::context_t> item_r;
+	    rule<ScannerT, item_val::context_t> item_r;
 
 	    typename derived_T::keywords keywords_p;
 	    typename derived_T::constvals constvals_p;
@@ -115,11 +126,13 @@ namespace conf4cpp
 		    config_r
 			= *item_r;
 		    item_r
-			= keywords_p[item_r.val = arg1]
+			= keywords_p[item_r.kwid = arg1]
 			    >> '='
-			    >> value_r[phoenix::bind(type_check(self.timap))(item_r.val,arg1)][phoenix::bind(store_value(self.vmap))(item_r.val,arg1)] >> ';';
+			    >> value_r[item_r.err = phoenix::bind(store_value(self.timap,self.vmap))(item_r.kwid,arg1)]
+			    >> eps_p[phoenix::bind(check_value())(item_r.err,arg1)]
+			    >> ';';
 		    value_r
-			= atomic_value_r[value_r.val = construct_<vector<var_t> >(1, arg1)]
+			= atomic_value_r[value_r.val = construct_<vector<var_t> >(1,arg1)]
 			    >> *(',' >> atomic_value_r[value_r.val = phoenix::bind(&add_value)(value_r.val,arg1)]);
 		    atomic_value_r
 			= 
@@ -127,7 +140,8 @@ namespace conf4cpp
 			| int_p		[atomic_value_r.val = arg1]
 			| bool_r	[atomic_value_r.val = arg1]
 			| string_r	[atomic_value_r.val = arg1]
-			| ch_p('{')[atomic_value_r.val = construct_<vector<var_t> >()] >> !value_r[atomic_value_r.val = arg1] >> '}'
+			| ch_p('{')[atomic_value_r.val = construct_<vector<var_t> >()]
+			    >> !value_r[atomic_value_r.val = arg1] >> '}'
 			//	| '{' >> *item_r >> '}'
 			| constvals_p	[atomic_value_r.val = arg1];
 

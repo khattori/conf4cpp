@@ -22,34 +22,9 @@ struct confdef_g : public grammar<confdef_g>
 		| str_p("string");
 
 	    id_r
-		= lexeme_d[ alpha_p >> +alnum_p ];
+		= lexeme_d[ (alpha_p|'_') >> +(alnum_p|'_') ];
         }
 
         rule<ScannerT> const& start() const { return confdef_r; }
     };
 };
-
-int main(int argc, char* args[])
-{
-    if (argc < 2) {
-	cout << "no input file.\n";
-	return -1;
-    }
-
-    file_iterator<> first(args[1]);
-    if (!first) {
-	cout << "unable to open file: " << args[1] << "\n";
-	return -1;
-    }
-    file_iterator<> last = first.make_end();
-
-    confdef_g g;
-    parse_info<file_iterator<> > info = parse(first, last, g, space_p|comment_p("#"));
-
-    if (!info.full) {
-	cout << "parse error\n";
-	return -1;
-    }
-
-    return 0;
-}

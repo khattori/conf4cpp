@@ -2,16 +2,28 @@ PREFIX	= /usr/local
 
 TARGET	= conf4cpp
 SRCS	= conf4cpp.cpp
-CFLAGS	= -Wall -I/usr/include/boost1_33_1 -I../inc
+CXXFLAGS= -Wall
+CPPFLAGS= -I/usr/include/boost1_33_1 -I../inc
 LIBS	=
 
+
 OBJS	= $(SRCS:.cpp=.o)
+DEPS	= $(SRCS:.cpp=.d)
+
+%.o	: %.cpp
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $<
 
 $(TARGET)	: $(OBJS)
-	$(CXX) -o $@ $(OBJS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LIBS)
 
 .PHONY: clean
 clean	:
-	rm -fr $(OBJS) $(TARGET)
+	rm -fr $(OBJS) $(TARGET) $(DEPS)
 
-# $Id$
+%.d	: %.cpp
+	@echo "generating dependency file: $@"
+	@$(SHELL) -ec '$(CXX) -MM $(CPPFLAGS) $< \
+		| sed "s/\($*\)\.o[ :]*/\1.o $@ : /g" > $@; \
+		[ -s $@ ] || rm -f $@'
+
+-include $(DEPS)

@@ -1,12 +1,25 @@
-enum proto_t { TCP, UDP, ICMP }
-
 config SampleConf
+#config config
+#configSampleConf
 {
-	required foo: int[range(0,100)];
-	optional doTest = false : bool
-	         proto = TCP : proto_t;
-	         addr  = "0.0.0.0", 1000 : string, uint;
-		 BList = {} : vector<bool>[length<10]
-	list<pair<int,bool>> test;
+	enum proto_t { TCP, UDP, ICMP, RTP }
+#	enum proto_t { enum, UDP, ICMP, RTP }
+	enum foo_t { FOO, BAR, BAZ }
+#	enum bar_t { UDP }
+#	required required : int;
+	required foo : int;
+	required bar : bool;
+#	required bar : bool;
+	required baz : string;
+	optional poo : int,bool;	
+#	optional por : list[5]<int>;
+	optional pom : list<string>;
+	optional far : string,(int,string),bool;
+	optional hoo : proto_t;
+	optional haz : foo_t,proto_t;
+#	optional har : optional;
+	optional has : foo_t;
+	optional hashas : foo_t;
+	optional hoge : foo_t;
 }
 

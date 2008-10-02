@@ -18,7 +18,7 @@ using namespace boost::spirit;
 
 namespace conf4cpp
 {
-    typedef enum { TI_BOOL, TI_INT, TI_DOUBLE, TI_STRING } ti_atomic_t;
+    enum ti_atomic_t { TI_BOOL, TI_INT, TI_DOUBLE, TI_STRING };
     struct ti_enum_t {
 	ti_enum_t(int eid_) : eid(eid_) {}
 	int eid;
@@ -53,7 +53,7 @@ namespace conf4cpp
 	    if (p.first != te.eid) return type_mismatch;
 	    return error_none;
 	}
-	error_t operator() (pair<int, type_t> tp) const {
+	error_t operator() (pair<unsigned int, type_t> tp) const {
 	    if (!is_vector(v_)) return type_mismatch;
 	    vector<var_t> vec = var2vector(v_);
 	    if (tp.first > 0 && tp.first != vec.size()) return invalid_length;

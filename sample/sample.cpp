@@ -66,6 +66,10 @@ private:
 };
 struct MyConfigParser : public base_config_parser<MyConfigParser>
 {
+    enum type_id_t {
+	tid_proto_t,
+	tid_foo_t,
+    };
     struct keywords : symbols<string>
     {
 	keywords() {
@@ -86,13 +90,13 @@ struct MyConfigParser : public base_config_parser<MyConfigParser>
     {
 	constvals() {
 	    add
-		("UDP",  make_pair(0, MyConfig::UDP))
-		("TCP",  make_pair(0, MyConfig::TCP))
-		("ICMP", make_pair(0, MyConfig::ICMP))
-		("RTP",  make_pair(0, MyConfig::RTP))
-		("FOO",  make_pair(1, MyConfig::FOO))
-		("BAR",  make_pair(1, MyConfig::BAR))
-		("BAZ",  make_pair(1, MyConfig::BAZ))
+		("UDP",  make_pair(tid_proto_t, MyConfig::UDP))
+		("TCP",  make_pair(tid_proto_t, MyConfig::TCP))
+		("ICMP", make_pair(tid_proto_t, MyConfig::ICMP))
+		("RTP",  make_pair(tid_proto_t, MyConfig::RTP))
+		("FOO",  make_pair(tid_foo_t,   MyConfig::FOO))
+		("BAR",  make_pair(tid_foo_t,   MyConfig::BAR))
+		("BAZ",  make_pair(tid_foo_t,   MyConfig::BAZ))
 		;
 	}
     };
@@ -127,10 +131,10 @@ struct MyConfigParser : public base_config_parser<MyConfigParser>
 	ti_far.push_back(TI_BOOL);
 	timap["far"] = ti_far;	// tuple<vector<string>,tuple<int,string>,bool>
 
-	timap["hoo"] = ti_enum_t(0);
+	timap["hoo"] = ti_enum_t(tid_proto_t);
 	vector<type_t> ti_haz;
-	ti_haz.push_back(ti_enum_t(1));  // FOO
-	ti_haz.push_back(ti_enum_t(0));  // PROTO
+	ti_haz.push_back(ti_enum_t(tid_foo_t));  // FOO
+	ti_haz.push_back(ti_enum_t(tid_proto_t));  // PROTO
 	timap["haz"] = ti_haz;
     }
 };

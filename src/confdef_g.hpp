@@ -4,6 +4,7 @@
  *
  *===========================================================================*/
 #include <boost/spirit.hpp>
+#include <boost/spirit/actor.hpp>
 #include <conf4cpp.hpp>
 
 using namespace std;
@@ -13,8 +14,9 @@ using namespace conf4cpp;
 
 struct confdef_g : public grammar<confdef_g>
 {
-    struct type_val : closure<type_val, type_t>       { member1 val; };
-    struct uint_val : closure<uint_val, unsigned int> { member1 val; };
+    struct type_val   : closure<type_val, type_t>       { member1 val; };
+    struct uint_val   : closure<uint_val, unsigned int> { member1 val; };
+    struct string_val : closure<string_val, string>     { member1 val; };
     enum symtype_t {
         SYM_RESERVED, SYM_TYPENAME, SYM_CONFIG, SYM_ENUM, SYM_ELEM, SYM_ITEM, 
     };
@@ -50,7 +52,7 @@ struct confdef_g : public grammar<confdef_g>
         template<typename IteratorT>
         void operator() (const IteratorT& first, const IteratorT& last) const {
             string key(first, last);
-            cout << key << " is defined" << endl;
+//            cout << key << " is defined" << endl;
             sym.add(key.c_str(), make_pair(styp, symid++));
         }
     };
@@ -58,11 +60,12 @@ struct confdef_g : public grammar<confdef_g>
     template <typename ScannerT> struct definition
     {
 	rule<ScannerT> config_r, spec_r, itemdef_r, enumdef_r;
-	rule<ScannerT,type_val::context_t> type_r, compound_type_r, postfix_type_r, atomic_type_r;
+	rule<ScannerT,type_val::context_t> compound_type_r, postfix_type_r, atomic_type_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
 	rule<ScannerT> mandatory_r, constraints_r;
 	rule<ScannerT> elemseq_r, id_r;
-        rule<ScannerT> new_sym, newconf_sym, newitem_sym, newenum_sym, newelem_sym;
+        rule<ScannerT> new_sym;
+        rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
 	sym_s sym_p;
 
         definition(confdef_g const& self) {
@@ -74,9 +77,9 @@ struct confdef_g : public grammar<confdef_g>
             config_r
                 = lexeme_d[str_p("config") >> blank_p] >> newconf_sym >> '{' >> *spec_r >> '}';
 	    spec_r
-		= (itemdef_r | enumdef_r);
+		= (enumdef_r | itemdef_r);
             itemdef_r
-		= mandatory_r >> newitem_sym >> ':' >> type_r >> ';';
+		= !mandatory_r >> newitem_sym[var(self.cur_sym)=arg1] >> ':' >> compound_type_r[insert_at_a(self.itemtype_map,self.cur_sym)] >> ';';
 	    enumdef_r
 		= lexeme_d[str_p("enum") >> blank_p] >> newenum_sym >> '{' >> elemseq_r >> '}';
 	    mandatory_r
@@ -84,10 +87,10 @@ struct confdef_g : public grammar<confdef_g>
 	    constraints_r
 		= eps_p;
 
-	    type_r
-		= compound_type_r;
 	    compound_type_r
-		= postfix_type_r[compound_type_r.val=arg1] >> *(',' >> postfix_type_r);
+		= postfix_type_r[var(self.type_list)=construct_<vector<type_t> >(1,arg1)]
+                    >> *(',' >> postfix_type_r[push_back_a(self.type_list)])
+                    >> eps_p[compound_type_r.val=self.type_list];
 	    postfix_type_r
 		= list_type_r[var(self.list_len)=arg1] >> '<' >> compound_type_r[postfix_type_r.val=construct_<pair<int,type_t> >(self.list_len,arg1)] >> '>'
 	        | atomic_type_r[postfix_type_r.val=arg1] >> !('[' >> constraints_r >> ']');
@@ -105,7 +108,7 @@ struct confdef_g : public grammar<confdef_g>
             newconf_sym
                 = new_sym[add_sym(sym_p, SYM_CONFIG, self.symid)];
             newitem_sym
-                = new_sym[add_sym(sym_p, SYM_ITEM, self.symid)];
+                = new_sym[add_sym(sym_p, SYM_ITEM, self.symid)][newitem_sym.val=construct_<string>(arg1,arg2)];
             newenum_sym
                 = new_sym[add_sym(sym_p, SYM_ENUM, self.symid)];
             newelem_sym
@@ -118,5 +121,8 @@ struct confdef_g : public grammar<confdef_g>
     };
     mutable int symid;
     mutable pair<symtype_t,int> cur_type;
+    mutable vector<type_t> type_list;
     mutable unsigned int list_len;
+    mutable string cur_sym;
+    mutable map<string, type_t> itemtype_map;
 };

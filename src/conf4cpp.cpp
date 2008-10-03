@@ -80,6 +80,12 @@ int main(int argc, char* argv[])
 	    fprintf(stderr, "%s: %d: parse error\n", input_file, pinfo.stop.get_position().line);
 	    return -1;
 	}
+        for (map<string, type_t>::iterator iter = g.itemtype_map.begin();
+             iter != g.itemtype_map.end();
+             ++iter) {
+            cout << iter->first << endl;
+        }
+
     }
 
     return 0;

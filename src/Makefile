@@ -1,7 +1,10 @@
 PREFIX	= /usr/local
 
 TARGET	= conf4cpp
-SRCS	= conf4cpp.cpp
+SRCS	= \
+	conf4cpp.cpp \
+	confgen.cpp
+
 CXXFLAGS= -Wall
 CPPFLAGS= -I/usr/include/boost-1_33_1 -I../inc
 LIBS	=

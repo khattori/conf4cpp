@@ -3,6 +3,9 @@
  * Copyright (c) 2008- Kenta Hattori
  *
  *===========================================================================*/
+#ifndef CONFDEF_HPP
+#define CONFDEF_HPP
+
 #include <boost/spirit.hpp>
 #include <boost/spirit/actor.hpp>
 #include <conf4cpp.hpp>
@@ -43,19 +46,31 @@ struct confdef_g : public grammar<confdef_g>
                 ;
         }
     };
+    template<symtype_t styp>
     struct add_sym
     {
         sym_s& sym;
-        symtype_t styp;
-        int& symid;
-        add_sym(sym_s &sym_, symtype_t styp_, int& symid_)
-            : sym(sym_), styp(styp_), symid(symid_) {}
+        add_sym(sym_s &sym_) : sym(sym_) {}
+        template<typename IteratorT>
+        void operator() (const IteratorT& first, const IteratorT& last) const {
+            string key(first, last);
+            sym.add(key.c_str(), make_pair(styp, 0));
+        }
+    };
+
+    struct add_enumsym
+    {
+        sym_s& sym;
+        int& enumid;
+        map<string, int>& enumid_map;
+        add_enumsym(sym_s &sym_, int& enumid_, map<string,int>& enumid_map_)
+            : sym(sym_), enumid(enumid_), enumid_map(enumid_map_) {}
 
         template<typename IteratorT>
         void operator() (const IteratorT& first, const IteratorT& last) const {
             string key(first, last);
-//            cout << key << " is defined" << endl;
-            sym.add(key.c_str(), make_pair(styp, symid++));
+            enumid_map[key] = enumid;
+            sym.add(key.c_str(), make_pair(SYM_ENUM, enumid++));
         }
     };
 
@@ -129,13 +144,13 @@ struct confdef_g : public grammar<confdef_g>
             new_sym
                 = (id_r - sym_p) | sym_p[var(cout) << "symbol redefined\n"] >> nothing_p;
             newconf_sym
-                = new_sym[add_sym(sym_p, SYM_CONFIG, self.symid)][newconf_sym.val=construct_<string>(arg1,arg2)];
+                = new_sym[add_sym<SYM_CONFIG>(sym_p)][newconf_sym.val=construct_<string>(arg1,arg2)];
             newitem_sym
-                = new_sym[add_sym(sym_p, SYM_ITEM, self.symid)][newitem_sym.val=construct_<string>(arg1,arg2)];
+                = new_sym[add_sym<SYM_ITEM>(sym_p)][newitem_sym.val=construct_<string>(arg1,arg2)];
             newenum_sym
-                = new_sym[add_sym(sym_p, SYM_ENUM, self.symid)][newenum_sym.val=construct_<string>(arg1,arg2)];
+                = new_sym[add_enumsym(sym_p,self.enumid,self.enumid_map)][newenum_sym.val=construct_<string>(arg1,arg2)];
             newelem_sym
-                = new_sym[add_sym(sym_p, SYM_ELEM, self.symid)][newelem_sym.val=construct_<string>(arg1,arg2)];
+                = new_sym[add_sym<SYM_ELEM>(sym_p)][newelem_sym.val=construct_<string>(arg1,arg2)];
 	    elemseq_r
 		= newelem_sym[var(self.elem_list)=construct_<vector<string> >(1,arg1)]
                     >> *(',' >> newelem_sym[push_back_a(self.elem_list)])
@@ -144,7 +159,7 @@ struct confdef_g : public grammar<confdef_g>
 
         rule<ScannerT> const& start() const { return config_r; }
     };
-    mutable int symid;
+    mutable int enumid;
     mutable string cur_sym;
     mutable pair<symtype_t,int> cur_type;
     mutable unsigned int list_len;
@@ -152,4 +167,7 @@ struct confdef_g : public grammar<confdef_g>
     mutable vector<string> elem_list;
     mutable map<string, type_t> itemtype_map;
     mutable map<string, vector<string> > enumelem_map;
+    mutable map<string, int> enumid_map;
 };
+
+#endif /* CONFDEF_HPP */

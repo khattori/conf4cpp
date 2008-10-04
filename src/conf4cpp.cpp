@@ -8,6 +8,7 @@
 #include <getopt.h>
 
 #include "confdef_g.hpp"
+#include "confgen.hpp"
 
 using namespace std;
 
@@ -25,6 +26,7 @@ static void print_usage()
 	    "  -v, --version            display version information\n"
 	    "  -o, --output=filename    specify output file name\n");
 }
+
 
 int main(int argc, char* argv[])
 {
@@ -80,23 +82,8 @@ int main(int argc, char* argv[])
 	    fprintf(stderr, "%s: %d: parse error\n", input_file, pinfo.stop.get_position().line);
 	    return -1;
 	}
-        cout << "element list:" << endl;
-        for (map<string, vector<string> >::iterator iter = g.enumelem_map.begin();
-             iter != g.enumelem_map.end();
-             ++iter) {
-            cout << iter->first << "={";
-            for (unsigned int i = 0; i < iter->second.size(); i++) {
-                cout << iter->second[i] << ' ';
-            }
-            cout << '}' << endl;
-        }
-        cout << "item list:" << endl;
-        for (map<string, type_t>::iterator iter = g.itemtype_map.begin();
-             iter != g.itemtype_map.end();
-             ++iter) {
-            cout << iter->first << endl;
-        }
-
+        confgen gen(g.itemtype_map, g.enumelem_map, g.enumid_map);
+        gen.output(cout);
     }
 
     return 0;

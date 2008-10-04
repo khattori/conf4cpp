@@ -23,18 +23,6 @@ namespace conf4cpp
 	item_redefined,
 	item_undefined,
     };
-    const char *err2str(error_t err) {
-	static const char* tbl[] = {
-	    "no error",
-	    "file error",
-	    "parse error",
-	    "invalid length",
-	    "type mismatch",
-	    "item redefined",
-	    "item undefined",
-	};
-	return tbl[err];
-    }
     class error : public exception
     {
     public:
@@ -48,6 +36,19 @@ namespace conf4cpp
 	const char* what() const throw() { return msg_.c_str(); }
     private:
 	const string msg_;
+
+        static const char *err2str(error_t err) {
+            static const char* tbl[] = {
+                "no error",
+                "file error",
+                "parse error",
+                "invalid length",
+                "type mismatch",
+                "item redefined",
+                "item undefined",
+            };
+            return tbl[err];
+        }
     };
 }
 

@@ -31,3 +31,24 @@ confgen::output(ostream& os) {
         os << iter->first << endl;
     }
 }
+
+// class XXX_parser;
+// class XXX : public base_config<XXX_parser> {
+// public:
+//    enum xxx { ... };
+//    enum yyy { ... };
+//    XXX(const string& fname) : base_config<XXX_parser>(fname) {
+//
+//    }
+//
+//    // define accessor methods
+//    const xxx_t& xxx() const { return xxx_; }
+//    bool has_xxx() const { return has_xxx_; }
+//
+// private:
+//    // define config properties
+//    // xxx_t xxx_;
+//    // bool has_xxx_t_;
+// };
+
+

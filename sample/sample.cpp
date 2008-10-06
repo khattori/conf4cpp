@@ -139,6 +139,7 @@ struct MyConfigParser : public base_config_parser<MyConfigParser>
     }
 };
 
+
 int main(int argc, char* args[])
 {
     if (argc < 2) {

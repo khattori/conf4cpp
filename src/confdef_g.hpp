@@ -90,6 +90,7 @@ struct confdef_g : public grammar<confdef_g>
 	    using phoenix::arg2;
 	    using phoenix::var;
 	    using phoenix::construct_;
+	    using phoenix::static_cast_;
             self.enumid = 0;
             //
             // <config>    ::= config { <spec>* }
@@ -130,9 +131,9 @@ struct confdef_g : public grammar<confdef_g>
 		= str_p("list")[list_type_r.val=0] >> !('[' >> uint_p[list_type_r.val=arg1] >> ']');
 	    atomic_texp_r
 		= sym_p[var(self.cur_type)=arg1]
-                    >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[atomic_texp_r.val=self.cur_type.second]
+                    >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[atomic_texp_r.val=static_cast_<ti_atomic_t>(var(self.cur_type.second))]
 		| sym_p[var(self.cur_type)=arg1]
-                    >> eps_p(var(self.cur_type.first)==SYM_ENUM)[atomic_texp_r.val=construct_<ti_enum_t>(self.cur_type.second)]
+                    >> eps_p(var(self.cur_type.first)==SYM_ENUM)[atomic_texp_r.val=construct_<ti_enum_t>(var(self.cur_type.second))]
 		| '(' >> compound_texp_r[atomic_texp_r.val=arg1] >> ')';
 
             // not yet implemented

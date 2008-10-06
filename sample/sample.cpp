@@ -1,6 +1,8 @@
 #include <conf4cpp.hpp>
 #include <boost/tuple/tuple.hpp>
+#include "myconfig.out.hpp"
 
+/*
 using namespace conf4cpp;
 
 //
@@ -138,7 +140,7 @@ struct MyConfigParser : public base_config_parser<MyConfigParser>
 	timap["haz"] = ti_haz;
     }
 };
-
+*/
 
 int main(int argc, char* args[])
 {

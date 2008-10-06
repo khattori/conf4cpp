@@ -10,6 +10,7 @@
 #include <map>
 #include <boost/variant.hpp>
 #include <boost/spirit.hpp>
+#include <boost/lexical_cast.hpp>
 #include <conf4cpp/var.hpp>
 #include <conf4cpp/error.hpp>
 
@@ -32,6 +33,42 @@ namespace conf4cpp
 
     inline bool is_prim_type(const type_t& typ) { return typ.which() < 2; }
     inline bool is_comp_type(const type_t& typ) { return !is_prim_type(typ); }
+
+    class type_string : public boost::static_visitor<string>
+    {
+    public:
+        type_string(map<string,int> eidm) : eidm_(eidm) {}
+        string operator() (ti_atomic_t ta) const {
+            switch (ta) {
+            case TI_BOOL:   return "bool"; 
+            case TI_INT:    return "int";
+            case TI_DOUBLE: return "double";
+            case TI_STRING: return "string";
+            default: assert(false);
+            }
+        }
+        string operator() (ti_enum_t te) const {
+            for (map<string,int>::const_iterator iter = eidm_.begin();
+                 iter != eidm_.end();
+                 ++iter) {
+                if (iter->second == te.eid) return iter->first;
+            }
+            return "???: " + boost::lexical_cast<string>(te.eid);
+        }
+        string operator() (pair<unsigned int, type_t> tp) const {
+            return string("vector<") + apply_visitor(type_string(eidm_),tp.second) + " >";
+        }
+        string operator() (vector<type_t> tv) const {
+            string ret("tuple<");
+            for (unsigned int i = 0; i < tv.size()-1; i++) {
+                ret += apply_visitor(type_string(eidm_),tv[i]) + ",";
+            }
+            ret += apply_visitor(type_string(eidm_),tv.back()) + " >";
+            return ret;
+        }
+    private:
+        map<string,int> eidm_;
+    };
 
     class type_checker : public boost::static_visitor<error_t>
     {

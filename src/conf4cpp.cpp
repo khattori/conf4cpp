@@ -83,7 +83,8 @@ int main(int argc, char* argv[])
 	    return -1;
 	}
         confgen gen(g.conf_name, g.itemtype_map, g.enumelem_map, g.enumid_map);
-        gen.output(cout);
+        gen.output_interface(cout);
+        gen.output_implementation(cout);
     }
 
     return 0;

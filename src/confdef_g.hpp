@@ -90,7 +90,7 @@ struct confdef_g : public grammar<confdef_g>
 	    using phoenix::arg2;
 	    using phoenix::var;
 	    using phoenix::construct_;
-
+            self.enumid = 0;
             //
             // <config>    ::= config { <spec>* }
             // <spec>      ::= <enumdef> | <itemdef>
@@ -99,7 +99,7 @@ struct confdef_g : public grammar<confdef_g>
             // <mandatory> ::= required | optional
             //
             config_r
-                = lexeme_d[str_p("config") >> blank_p] >> newconf_sym >> '{' >> *spec_r >> '}';
+                = lexeme_d[str_p("config") >> blank_p] >> newconf_sym[var(self.conf_name)=arg1] >> '{' >> *spec_r >> '}';
 	    spec_r
 		= (enumdef_r | itemdef_r);
 
@@ -168,6 +168,7 @@ struct confdef_g : public grammar<confdef_g>
     mutable map<string, type_t> itemtype_map;
     mutable map<string, vector<string> > enumelem_map;
     mutable map<string, int> enumid_map;
+    mutable string conf_name;
 };
 
 #endif /* CONFDEF_HPP */

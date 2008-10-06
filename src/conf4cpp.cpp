@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 	    fprintf(stderr, "%s: %d: parse error\n", input_file, pinfo.stop.get_position().line);
 	    return -1;
 	}
-        confgen gen(g.itemtype_map, g.enumelem_map, g.enumid_map);
+        confgen gen(g.conf_name, g.itemtype_map, g.enumelem_map, g.enumid_map);
         gen.output(cout);
     }
 

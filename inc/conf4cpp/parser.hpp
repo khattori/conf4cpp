@@ -21,36 +21,36 @@ namespace conf4cpp
     class store_value
     {
     public:
-	typedef error_t result_type;
-	store_value(const tyinfo_map_t& tm, value_map_t& vm) : tm_(tm), vm_(vm) {}
-	error_t operator()(const string& kw, const var_t& v) {
-	    vector<var_t> vec = var2vector(v);	    
-	    type_t typ = tm_[kw];
-	    error_t err;
-	    if (is_prim_type(typ)) {
-		if (vec.size() != 1) return type_mismatch;
-		if ((err = apply_visitor(type_checker(vec[0]), typ)) != error_none)
-		    return err;
-		if (vm_.find(kw) != vm_.end()) return item_redefined;
-		vm_[kw] = vec[0];
-	    } else {
-		if (vec.size() == 1 && is_vector(vec[0])) {
-		    if ((err = apply_visitor(type_checker(vec[0]), typ)) != error_none)
-			return err;
-		    if (vm_.find(kw) != vm_.end()) return item_redefined;
-		    vm_[kw] = vec[0];
-		} else {
-		    if ((err = apply_visitor(type_checker(v), typ)) != error_none)
-			return err;
-		    if (vm_.find(kw) != vm_.end()) return item_redefined;
-		    vm_[kw] = v;
-		}
-	    }
-	    return error_none;
-	}
+        typedef error_t result_type;
+        store_value(const tyinfo_map_t& tm, value_map_t& vm) : tm_(tm), vm_(vm) {}
+        error_t operator()(const string& kw, const var_t& v) {
+            vector<var_t> vec = var2vector(v);	    
+            type_t typ = tm_[kw];
+            error_t err;
+            if (is_prim_type(typ)) {
+                if (vec.size() != 1) return type_mismatch;
+                if ((err = apply_visitor(type_checker(vec[0]), typ)) != error_none)
+                    return err;
+                if (vm_.find(kw) != vm_.end()) return item_redefined;
+                vm_[kw] = vec[0];
+            } else {
+                if (vec.size() == 1 && is_vector(vec[0])) {
+                    if ((err = apply_visitor(type_checker(vec[0]), typ)) != error_none)
+                        return err;
+                    if (vm_.find(kw) != vm_.end()) return item_redefined;
+                    vm_[kw] = vec[0];
+                } else {
+                    if ((err = apply_visitor(type_checker(v), typ)) != error_none)
+                        return err;
+                    if (vm_.find(kw) != vm_.end()) return item_redefined;
+                    vm_[kw] = v;
+                }
+            }
+            return error_none;
+        }
     private:
-	tyinfo_map_t tm_;
-	value_map_t&  vm_;
+        tyinfo_map_t tm_;
+        value_map_t&  vm_;
     };
     struct check_value
     {
@@ -60,7 +60,6 @@ namespace conf4cpp
 	    if (err != error_none) throw_(where, err);
 	}
     };
-    var_t add_value(var_t& v1, const var_t& v2) { vector<var_t> v = var2vector(v1); v.push_back(v2); return v; }
 
     struct variant_val : closure<variant_val, var_t>  { member1 val; };
     struct string_val  : closure<string_val,  string> { member1 val; };
@@ -69,24 +68,24 @@ namespace conf4cpp
     template <typename derived_T>
     struct base_config_parser : public grammar<base_config_parser<derived_T> >
     {
-	base_config_parser(value_map_t& vm) : vmap(vm) {}
+        base_config_parser(value_map_t& vm) : vmap(vm) {}
+        static var_t add_value(var_t& v1, const var_t& v2) { vector<var_t> v = var2vector(v1); v.push_back(v2); return v; }
 
+        vector<string> reqs;
+        tyinfo_map_t timap;
+        value_map_t& vmap;
 
-	vector<string> reqs;
-	tyinfo_map_t timap;
-	value_map_t& vmap;
+        template <typename ScannerT> struct definition
+        {
+            rule<ScannerT> config_r;
+            rule<ScannerT, variant_val::context_t> value_r, atomic_value_r, bool_r;
+            rule<ScannerT, string_val::context_t> string_r;
+            rule<ScannerT, item_val::context_t> item_r;
 
-	template <typename ScannerT> struct definition
-	{
-	    rule<ScannerT> config_r;
-	    rule<ScannerT, variant_val::context_t> value_r, atomic_value_r, bool_r;
-	    rule<ScannerT, string_val::context_t> string_r;
-	    rule<ScannerT, item_val::context_t> item_r;
+            typename derived_T::keywords keywords_p;
+            typename derived_T::constvals constvals_p;
 
-	    typename derived_T::keywords keywords_p;
-	    typename derived_T::constvals constvals_p;
-
-	    definition(base_config_parser const& self) {
+            definition(base_config_parser const& self) {
                 using phoenix::arg1;
                 using phoenix::arg2;
                 using phoenix::construct_;
@@ -119,8 +118,8 @@ namespace conf4cpp
                     = confix_p('"', (*c_escape_ch_p)[string_r.val = construct_<string>(arg1,arg2)], '"');
             }
 
-	    rule<ScannerT> const& start() const { return config_r; }
-	};
+            rule<ScannerT> const& start() const { return config_r; }
+        };
     };
 
 }

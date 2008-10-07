@@ -27,6 +27,7 @@ public:
 private:
     string get_typestr(const type_t& ty);
 
+    void output_file_header(ostream& os);
     void output_interface_enumdefs(ostream& os);
     void output_interface_accessors(ostream& os);
     void output_interface_members(ostream& os);

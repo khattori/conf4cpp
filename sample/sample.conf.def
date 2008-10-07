@@ -12,9 +12,9 @@ config SampleConf
 #	required bar : bool;
 	required baz : string;
 	optional poo : int,bool;	
-#	optional por : list[5]<int>;
+	optional por : list[5]<int>;
 	optional pom : list<string>;
-	optional far : string,(int,string),bool;
+	optional far : list<string>,(int,string),bool;
 	optional hoo : proto_t;
 	optional haz : foo_t,proto_t;
 #	optional har : optional;

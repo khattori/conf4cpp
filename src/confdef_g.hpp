@@ -20,6 +20,7 @@ struct confdef_g : public grammar<confdef_g>
     struct type_val   : closure<type_val, type_t>            { member1 val; };
     struct typels_val : closure<typels_val, type_t, vector<type_t> > { member1 val; member2 tys; };
     struct uint_val   : closure<uint_val, unsigned int>      { member1 val; };
+    struct tyuint_val : closure<tyuint_val, type_t, unsigned int> { member1 val; member2 len; };
     struct string_val : closure<string_val, string>          { member1 val; };
     struct strvec_val : closure<strvec_val, vector<string> > { member1 val; };
     enum symtype_t {
@@ -88,7 +89,8 @@ struct confdef_g : public grammar<confdef_g>
     template <typename ScannerT> struct definition
     {
 	rule<ScannerT> config_r, spec_r, itemdef_r, enumdef_r;
-	rule<ScannerT,type_val::context_t> texp_r, postfix_texp_r, atomic_texp_r;
+	rule<ScannerT,type_val::context_t> texp_r, atomic_texp_r;
+        rule<ScannerT,tyuint_val::context_t> postfix_texp_r ;
 	rule<ScannerT,typels_val::context_t> compound_texp_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
 	rule<ScannerT> mandatory_r, constraints_r;
@@ -117,14 +119,15 @@ struct confdef_g : public grammar<confdef_g>
 		= (enumdef_r | itemdef_r);
 
             itemdef_r
-		= !mandatory_r >> newitem_sym[var(self.cur_sym)=arg1] >> ':'
-                               >> texp_r[insert_at_a(self.itemtype_map,self.cur_sym)] >> ';';
+		= eps_p[var(self.cur_req)=true]
+                    >> !mandatory_r >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)] >> ':'
+                    >> texp_r[insert_at_a(self.itemtype_map,self.cur_sym)] >> ';';
 	    enumdef_r
 		= lexeme_d[str_p("enum") >> blank_p]
                                          >> newenum_sym[var(self.cur_sym)=arg1]
                                          >> '{' >> elemseq_r[insert_at_a(self.enumelem_map,self.cur_sym)] >> '}';
 	    mandatory_r
-		= lexeme_d[str_p("required") >> blank_p] | lexeme_d[str_p("optional") >> blank_p];
+		= lexeme_d[str_p("required") >> blank_p] | lexeme_d[str_p("optional") >> blank_p][var(self.cur_req)=false];
             //
             // <compound_type> ::= <postfix_type> (, <postfix_type>)*
             // <postfix_type>  ::= list ([ <uint> ])? < <compound_type> >
@@ -138,8 +141,8 @@ struct confdef_g : public grammar<confdef_g>
                     >> *(',' >> postfix_texp_r[phoenix::bind(&add_value)(compound_texp_r.tys,arg1)])
                     >> eps_p[compound_texp_r.val=compound_texp_r.tys];
 	    postfix_texp_r
-		= list_type_r[var(self.list_len)=arg1]
-                    >> '<' >> texp_r[postfix_texp_r.val=construct_<pair<int,type_t> >(self.list_len,arg1)] >> '>'
+		= list_type_r[postfix_texp_r.len=arg1]
+                    >> '<' >> texp_r[postfix_texp_r.val=construct_<pair<int,type_t> >(postfix_texp_r.len,arg1)] >> '>'
 	        | atomic_texp_r[postfix_texp_r.val=arg1] >> !('[' >> constraints_r >> ']');
 	    list_type_r
 		= str_p("list")[list_type_r.val=0] >> !('[' >> uint_p[list_type_r.val=arg1] >> ']');
@@ -176,12 +179,13 @@ struct confdef_g : public grammar<confdef_g>
     };
     mutable int enumid;
     mutable string cur_sym;
+    mutable bool cur_req;
     mutable pair<symtype_t,int> cur_type;
-    mutable unsigned int list_len;
     mutable vector<string> elem_list;
     mutable map<string, type_t> itemtype_map;
     mutable map<string, vector<string> > enumelem_map;
     mutable map<string, int> enumid_map;
+    mutable map<string, bool> itemreq_map;
     mutable string conf_name;
 };
 

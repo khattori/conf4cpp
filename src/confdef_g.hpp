@@ -5,7 +5,6 @@
  *===========================================================================*/
 #ifndef CONFDEF_HPP
 #define CONFDEF_HPP
-
 #include <boost/spirit.hpp>
 #include <boost/spirit/actor.hpp>
 #include <conf4cpp.hpp>
@@ -100,7 +99,7 @@ struct confdef_g : public grammar<confdef_g>
             // <mandatory> ::= required | optional
             //
             config_r
-                = lexeme_d[str_p("config") >> blank_p] >> newconf_sym[var(self.conf_name)=arg1] >> '{' >> *spec_r >> '}';
+                = lexeme_d[str_p("config") >> blank_p] >> newconf_sym[var(self.conf_name)=arg1] >> '{' >> *spec_r >> '}' >> end_p;
 	    spec_r
 		= (enumdef_r | itemdef_r);
 

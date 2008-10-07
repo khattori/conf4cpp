@@ -90,7 +90,7 @@ namespace conf4cpp
                 using phoenix::arg2;
                 using phoenix::construct_;
                 config_r
-                    = *item_r;
+                    = *item_r >> end_p;
                 item_r
                     = keywords_p[item_r.kwid = arg1]
                         >> '='

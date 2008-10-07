@@ -201,10 +201,6 @@ confgen::output_implementation_config_constructor(ostream& os)
     for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
          iter != itemtype_map_.end();
          ++iter) {
-    foo_ = var2int(vm_["foo"]);
-    bar_ = var2bool(vm_["bar"]);
-    baz_ = var2string(vm_["baz"]);
-
     }
 
     os << "}" << endl;
@@ -242,7 +238,7 @@ struct tset_string : public boost::static_visitor<string>
             ret += "tvv.back().push_back(" + apply_visitor(tset_string(lv+1),tv[i]) + "),\n" + indent();
         }
         ret += "tvv.back().push_back(" + apply_visitor(tset_string(lv+1),tv.back()) + "),\n" + indent();
-        ret += "tv=tvv.back(),tvv.pop_back(),tv)\n" + indent();  
+        ret += "tv=tvv.back(),tvv.pop_back(),tv)";
         return ret;
     }
     string indent() const {

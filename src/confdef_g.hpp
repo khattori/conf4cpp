@@ -5,6 +5,7 @@
  *===========================================================================*/
 #ifndef CONFDEF_HPP
 #define CONFDEF_HPP
+
 #include <boost/spirit.hpp>
 #include <boost/spirit/actor.hpp>
 #include <conf4cpp.hpp>
@@ -14,10 +15,10 @@ using namespace boost::spirit;
 
 using namespace conf4cpp;
 
-
 struct confdef_g : public grammar<confdef_g>
 {
     struct type_val   : closure<type_val, type_t>            { member1 val; };
+    struct typels_val : closure<typels_val, type_t, vector<type_t> > { member1 val; member2 tys; };
     struct uint_val   : closure<uint_val, unsigned int>      { member1 val; };
     struct string_val : closure<string_val, string>          { member1 val; };
     struct strvec_val : closure<strvec_val, vector<string> > { member1 val; };
@@ -73,10 +74,22 @@ struct confdef_g : public grammar<confdef_g>
         }
     };
 
+    struct strip_type
+    {
+	typedef type_t result_type;
+	type_t operator()(const type_t& ty) {
+            vector<type_t> tv = boost::get<vector<type_t> >(ty);
+            if (tv.size() == 1) return tv.front();
+            return ty;
+	}
+    };
+    static void add_value(vector<type_t>& tv, const type_t& ty) { tv.push_back(ty); }
+
     template <typename ScannerT> struct definition
     {
 	rule<ScannerT> config_r, spec_r, itemdef_r, enumdef_r;
-	rule<ScannerT,type_val::context_t> compound_texp_r, postfix_texp_r, atomic_texp_r;
+	rule<ScannerT,type_val::context_t> texp_r, postfix_texp_r, atomic_texp_r;
+	rule<ScannerT,typels_val::context_t> compound_texp_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
 	rule<ScannerT> mandatory_r, constraints_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
@@ -105,7 +118,7 @@ struct confdef_g : public grammar<confdef_g>
 
             itemdef_r
 		= !mandatory_r >> newitem_sym[var(self.cur_sym)=arg1] >> ':'
-                               >> compound_texp_r[insert_at_a(self.itemtype_map,self.cur_sym)] >> ';';
+                               >> texp_r[insert_at_a(self.itemtype_map,self.cur_sym)] >> ';';
 	    enumdef_r
 		= lexeme_d[str_p("enum") >> blank_p]
                                          >> newenum_sym[var(self.cur_sym)=arg1]
@@ -118,13 +131,15 @@ struct confdef_g : public grammar<confdef_g>
             //                   | <atomic_type> (< <constraints> >)?
             // <atomic_type>   ::= <tid> | bool | int | real | string
             //
+            texp_r
+                = compound_texp_r[texp_r.val=phoenix::bind(strip_type())(arg1)];
 	    compound_texp_r
-		= postfix_texp_r[var(self.type_list)=construct_<vector<type_t> >(1,arg1)]
-                    >> *(',' >> postfix_texp_r[push_back_a(self.type_list)])
-                    >> eps_p[compound_texp_r.val=var(self.type_list)];
+		= postfix_texp_r[compound_texp_r.tys=construct_<vector<type_t> >(1,arg1)]
+                    >> *(',' >> postfix_texp_r[phoenix::bind(&add_value)(compound_texp_r.tys,arg1)])
+                    >> eps_p[compound_texp_r.val=compound_texp_r.tys];
 	    postfix_texp_r
 		= list_type_r[var(self.list_len)=arg1]
-                    >> '<' >> compound_texp_r[postfix_texp_r.val=construct_<pair<int,type_t> >(self.list_len,arg1)] >> '>'
+                    >> '<' >> texp_r[postfix_texp_r.val=construct_<pair<int,type_t> >(self.list_len,arg1)] >> '>'
 	        | atomic_texp_r[postfix_texp_r.val=arg1] >> !('[' >> constraints_r >> ']');
 	    list_type_r
 		= str_p("list")[list_type_r.val=0] >> !('[' >> uint_p[list_type_r.val=arg1] >> ']');
@@ -163,7 +178,6 @@ struct confdef_g : public grammar<confdef_g>
     mutable string cur_sym;
     mutable pair<symtype_t,int> cur_type;
     mutable unsigned int list_len;
-    mutable vector<type_t> type_list;
     mutable vector<string> elem_list;
     mutable map<string, type_t> itemtype_map;
     mutable map<string, vector<string> > enumelem_map;

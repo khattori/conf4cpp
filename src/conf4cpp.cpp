@@ -4,6 +4,7 @@
  *
  *===========================================================================*/
 #include <iostream>
+#include <fstream>
 #include <cstdio>
 #include <getopt.h>
 
@@ -84,8 +85,12 @@ int main(int argc, char* argv[])
 	}
         //       confgen gen(g.conf_name, g.itemtype_map, g.itemreq_map, g.enumelem_map, g.enumid_map);
         confgen gen(g);
-        gen.output_interface(cout);
-        gen.output_implementation(cout);
+	ofstream ofs_hpp((g.conf_name+".out.hpp").c_str());
+        gen.output_interface(ofs_hpp);
+	ofs_hpp.close();
+	ofstream ofs_cpp((g.conf_name+".out.cpp").c_str());
+        gen.output_implementation(ofs_cpp);
+	ofs_cpp.close();
     }
 
     return 0;

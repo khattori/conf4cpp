@@ -39,7 +39,7 @@ confgen::output_interface(ostream& os)
     os << "class " << conf_name_ << " : public conf4cpp::base_config<" << conf_name_ << "_parser>" << endl;
     os << "{" << endl;
     os << "public:" << endl;
-    os << conf_name_ << "(const string& fname)" << endl;
+    os << "\t" << conf_name_ << "(const string& fname);" << endl;
 
     output_interface_enumdefs(os);
     output_interface_accessors(os);
@@ -198,12 +198,13 @@ confgen::output_implementation_config_constructor(ostream& os)
     os << "// definition config constructor" << endl;
     os << conf_name_ << "::" << conf_name_ << "(const string& fname) : base_config<" << conf_name_ << "_parser>(fname)" << endl;
     os << "{" << endl;
-    os << "\tusing boost::make_tuple" << endl;
+    os << "\tusing boost::make_tuple;" << endl;
     os << "\tvar_t v;" << endl;
     for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
          iter != itemtype_map_.end();
          ++iter) {
-        os << "\t" << iter->first << "_ = (v=vm[\"" << iter->first << "\"]," << get_vsetstr(iter->second) << ");" << endl;
+        os << "\tv = vm[\"" << iter->first << "\"];" << endl;
+        os << "\t" << get_vsetstr(iter->second, iter->first+"_", "v", 1) << endl;
     }
 
     os << "}" << endl;

@@ -24,7 +24,7 @@ namespace conf4cpp
         typedef error_t result_type;
         store_value(const tyinfo_map_t& tm, value_map_t& vm) : tm_(tm), vm_(vm) {}
         error_t operator()(const string& kw, const var_t& v) {
-            vector<var_t> vec = var2vector(v);	    
+            vector<var_t> vec = var2<vector<var_t> >(v);	    
             type_t typ = tm_[kw];
             error_t err;
             if (is_prim_type(typ)) {
@@ -69,7 +69,7 @@ namespace conf4cpp
     struct base_config_parser : public grammar<base_config_parser<derived_T> >
     {
         base_config_parser(value_map_t& vm) : vmap(vm) {}
-        static var_t add_value(var_t& v1, const var_t& v2) { vector<var_t> v = var2vector(v1); v.push_back(v2); return v; }
+        static var_t add_value(var_t& v1, const var_t& v2) { vector<var_t> v = var2<vector<var_t> >(v1); v.push_back(v2); return v; }
 
         vector<string> reqs;
         tyinfo_map_t timap;

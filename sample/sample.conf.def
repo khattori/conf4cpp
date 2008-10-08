@@ -15,6 +15,9 @@ config SampleConf
 	optional por : list[5]<int>;
 	optional pom : list<string>;
 	optional far : list<string>,(int,string),bool;
+	required vaa : list<list<int>>;
+	required vas : list<list<list<string>>>;
+	required var : list<int,bool,list<string,int>,(bool,foo_t)>;
 	optional hoo : proto_t;
 	optional haz : foo_t,proto_t;
 #	optional har : optional;

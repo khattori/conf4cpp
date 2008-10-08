@@ -46,14 +46,6 @@ namespace conf4cpp
     template<> inline const string&        var2(const var_t &v) { assert(is_string(v)); return boost::get<string>(v);         }
     template<> inline const pair<int,int>& var2(const var_t &v) { assert(is_pair(v));   return boost::get<pair<int,int> >(v); }
     template<> inline const vector<var_t>& var2(const var_t &v) { assert(is_vector(v)); return boost::get<vector<var_t> >(v); }
-    template<typename T, int N> inline const T& var2_at(const var_t& v) { return var2<T>(var2<vector<var_t> >(v)[N]); }
-
-    template<typename T> inline vector<T> make_vec(const var_t& v) {
-	vector<var_t> vv = var2<vector<var_t> >(v);
-	vector<T> retvec = vector<T>(vv.size());
-        transform(vv.begin(), vv.end(), retvec.begin(), &var2<T>);	
-	return retvec;
-    }
 }
 
 #endif /* VAR_HPP */

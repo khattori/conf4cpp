@@ -1,6 +1,5 @@
 #include <conf4cpp.hpp>
-#include <boost/tuple/tuple.hpp>
-#include "myconfig.out.hpp"
+#include "SampleConf.out.hpp"
 
 int main(int argc, char* args[])
 {
@@ -9,7 +8,7 @@ int main(int argc, char* args[])
 	return -1;
     }
 
-    MyConfig conf(args[1]);
+    SampleConf conf(args[1]);
 
     return 0;
 }

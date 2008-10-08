@@ -129,10 +129,11 @@ private:
             return "???";
         }
         string operator() (pair<unsigned int, type_t> tp) const {
+	    string istr = "i"+boost::lexical_cast<string>(lv);
             string ret("vector<var_t> " + lhs + "v = var2<vector<var_t> >(" + rhs + ");\n" + indent(lv-1));
-            ret += "for (unsigned int i = 0; i < " + lhs + "v.size(); i++) {\n" + indent(lv);
+            ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + lhs + "v.size(); "+istr+"++) {\n" + indent(lv);
             ret += apply_visitor(type_string(eidm),tp.second) + " " + lhs + "iv;\n" + indent(lv);
-            ret += apply_visitor(vset_string(eidm,lhs+"iv",lhs+"v[i]",lv+1),tp.second) + "\n" + indent(lv);
+            ret += apply_visitor(vset_string(eidm,lhs+"iv",lhs+"v["+istr+"]",lv+1),tp.second) + "\n" + indent(lv);
             ret += lhs + ".push_back(" + lhs + "iv);\n" + indent(lv-1);
             ret += "}";
             return ret;

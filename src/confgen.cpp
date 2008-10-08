@@ -198,61 +198,15 @@ confgen::output_implementation_config_constructor(ostream& os)
     os << "// definition config constructor" << endl;
     os << conf_name_ << "::" << conf_name_ << "(const string& fname) : base_config<" << conf_name_ << "_parser>(fname)" << endl;
     os << "{" << endl;
+    os << "\tusing boost::make_tuple" << endl;
+    os << "\tvar_t v;" << endl;
     for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
          iter != itemtype_map_.end();
          ++iter) {
+        os << "\t" << iter->first << "_ = (v=vm[\"" << iter->first << "\"]," << get_vsetstr(iter->second) << ");" << endl;
     }
 
     os << "}" << endl;
-}
-
-string
-confgen::get_typestr(const type_t& ty)
-{
-    return apply_visitor(type_string(enumid_map_), ty);
-}
-
-struct tset_string : public boost::static_visitor<string>
-{
-    tset_string(unsigned int lv_) : lv(lv_) {}
-
-    string operator() (ti_atomic_t ta) const {
-        switch (ta) {
-        case TI_BOOL:   return "TI_BOOL"; 
-        case TI_INT:    return "TI_INT";
-        case TI_DOUBLE: return "TI_DOUBLE";
-        case TI_STRING: return "STRING";
-        default: assert(false);
-        }
-    }
-    string operator() (ti_enum_t te) const {
-        return string("ti_enum_t(") + boost::lexical_cast<string>(te.eid) + ")";
-    }
-    string operator() (pair<unsigned int, type_t> tp) const {
-        return string("make_pair(") + boost::lexical_cast<string>(tp.first) + "," + apply_visitor(tset_string(lv+1),tp.second) + ")";
-    }
-    string operator() (vector<type_t> tv) const {
-        string ret("(\n" + indent());
-        ret += "tvv.push_back(vector<type_t>()),\n" + indent();
-        for (unsigned int i = 0; i < tv.size()-1; i++) {
-            ret += "tvv.back().push_back(" + apply_visitor(tset_string(lv+1),tv[i]) + "),\n" + indent();
-        }
-        ret += "tvv.back().push_back(" + apply_visitor(tset_string(lv+1),tv.back()) + "),\n" + indent();
-        ret += "tv=tvv.back(),tvv.pop_back(),tv)";
-        return ret;
-    }
-    string indent() const {
-        string ret("\t");
-        for (unsigned int i = 0; i < lv; i++) ret += "\t";
-        return ret;
-    }
-    unsigned int lv;
-};
-
-string
-confgen::get_tsetstr(const type_t& ty, unsigned int lv)
-{
-    return apply_visitor(tset_string(lv), ty);
 }
 
 void

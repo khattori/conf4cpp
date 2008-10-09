@@ -1,5 +1,5 @@
 #include <conf4cpp.hpp>
-#include "SampleConf.out.hpp"
+#include "sample_conf.out.hpp"
 
 int main(int argc, char* args[])
 {
@@ -8,7 +8,7 @@ int main(int argc, char* args[])
 	return -1;
     }
 
-    SampleConf conf(args[1]);
+    sample_conf conf(args[1]);
 
     return 0;
 }

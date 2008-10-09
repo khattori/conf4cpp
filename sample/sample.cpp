@@ -9,6 +9,6 @@ int main(int argc, char* args[])
     }
 
     sample_conf conf(args[1]);
-
+    conf.dump(cout);
     return 0;
 }

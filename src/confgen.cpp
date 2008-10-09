@@ -204,8 +204,19 @@ confgen::output_implementation_config_constructor(ostream& os)
     for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
          iter != itemtype_map_.end();
          ++iter) {
-        os << "\tv = vm_[\"" << iter->first << "\"];" << endl;
-        os << "\t" << get_vsetstr(iter->second, iter->first+"_", "v", 1) << endl;
+        if (!itemreq_map_.find(iter->first)->second) {
+            os << "\tif (vm_.find(\"" << iter->first << "\")!=vm_.end()) {" << endl;
+            os << "\t\tv = vm_[\"" << iter->first << "\"];" << endl;
+            os << "\t\t" << get_vsetstr(iter->second, iter->first+"_", "v", 2) << endl;
+            os << "\t\thas_" << iter->first << "_ = true;" << endl
+               << "\t}" << endl
+               << "\telse {" << endl
+               << "\t\thas_" << iter->first << "_ = false;"
+               << "\t}" << endl;
+        } else {
+            os << "\tv = vm_[\"" << iter->first << "\"];" << endl;
+            os << "\t" << get_vsetstr(iter->second, iter->first+"_", "v", 1) << endl;
+        }
     }
 
     os << "}" << endl;

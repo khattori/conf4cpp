@@ -45,6 +45,7 @@ confgen::output_interface(ostream& os)
     output_interface_enumdefs(os);
     output_interface_accessors(os);
 
+    os << "\tvoid dump(ostream& os);" << endl;
     os << "private:" << endl;
 
     output_interface_members(os);
@@ -116,6 +117,7 @@ confgen::output_implementation(ostream& os)
     output_implementation_parser_constructor(os);
     os << "};" << endl;
     output_implementation_config_constructor(os);
+    output_implementation_config_dump(os);
 }
 void
 confgen::output_implementation_keywords(ostream& os)
@@ -172,8 +174,8 @@ confgen::output_implementation_parser_constructor(ostream& os)
     }
     // set item type
     os << "\t\t// set item type" << endl;
-    os << "\t\tvector<vector<type_t> > tvv;" << endl;
-    os << "\t\tvector<type_t> tv;" << endl;
+    os << "\t\tvector<vector<type_t> > tvv;" << endl
+       << "\t\tvector<type_t> tv;" << endl;
     for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
          iter != itemtype_map_.end();
          ++iter) {
@@ -199,12 +201,13 @@ confgen::output_implementation_config_constructor(ostream& os)
     os << "// definition config constructor" << endl;
     os << conf_name_ << "::" << conf_name_ << "(const string& fname) : base_config<" << conf_name_ << "_parser>(fname)" << endl;
     os << "{" << endl;
-    os << "\tusing boost::make_tuple;" << endl;
-    os << "\tvar_t v;" << endl;
+    os << "\tusing boost::make_tuple;" << endl
+       << "\tvar_t v;" << endl;
     for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
          iter != itemtype_map_.end();
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {
+            // オプション項目
             os << "\tif (vm_.find(\"" << iter->first << "\")!=vm_.end()) {" << endl;
             os << "\t\tv = vm_[\"" << iter->first << "\"];" << endl;
             os << "\t\t" << get_vsetstr(iter->second, iter->first+"_", "v", 2) << endl;
@@ -214,11 +217,38 @@ confgen::output_implementation_config_constructor(ostream& os)
                << "\t\thas_" << iter->first << "_ = false;"
                << "\t}" << endl;
         } else {
+            // 必須項目
             os << "\tv = vm_[\"" << iter->first << "\"];" << endl;
             os << "\t" << get_vsetstr(iter->second, iter->first+"_", "v", 1) << endl;
         }
     }
 
+    os << "}" << endl;
+}
+
+void
+confgen::output_implementation_config_dump(ostream& os)
+{
+    os << "// definition config dump" << endl;
+    os << "void " << conf_name_ << "::dump(ostream& os) {" << endl;
+    os << "\tos << \"dump [" << conf_name_ << "] {\" << endl;" << endl;
+    for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
+         iter != itemtype_map_.end();
+         ++iter) {
+        if (!itemreq_map_.find(iter->first)->second) {
+            //
+            // os << "option: xxx = " << .... << ";" << endl;
+            // os << "option: xxx = NONE" << .... << ";" << endl;
+            os << "\tif (has_" << iter->first << "_) {" << endl;
+            os << "\t\tos << \"\\toptional: " << iter->first << " = \" << " << get_dumpstr(iter->first,iter->second) << " << \";\" << endl;" << endl;
+            os << "\t} else {" << endl;
+            os << "\t\tos << \"\\toptional: " << iter->first << " = NONE;\" << endl;" << endl;
+            os << "\t}" << endl;
+        } else {
+            os << "\tos << \"\\trequired: " << iter->first << " = \" << " << get_dumpstr(iter->first,iter->second) << " << \";\" << endl;" << endl;
+        }
+    }
+    os << "\tos << \"}\" << endl;" << endl;
     os << "}" << endl;
 }
 

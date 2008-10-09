@@ -163,6 +163,7 @@ private:
     string get_tsetstr(const type_t& ty, unsigned int lv) { return apply_visitor(tset_string(lv), ty); }
     string get_vsetstr(const type_t& ty, const string& lhs, const string& rhs, unsigned int lv)
         { return apply_visitor(vset_string(enumid_map_,lhs,rhs,lv), ty); }
+    string get_dumpstr(const string& kw, const type_t& ty) { return "\"get_dumpstr\""; }
 
     static string indent(unsigned int lv) {
         string ret("\t");
@@ -178,6 +179,7 @@ private:
     void output_implementation_constvals(ostream& os);
     void output_implementation_parser_constructor(ostream& os);
     void output_implementation_config_constructor(ostream& os);
+    void output_implementation_config_dump(ostream& os);
 
     const string conf_name_;
     const map<string, type_t> itemtype_map_;

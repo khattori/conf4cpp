@@ -158,15 +158,70 @@ private:
         const string& rhs;
         unsigned int lv;
     };
+    //
+    // format string for value dump 
+    // 
+    struct dump_string : public boost::static_visitor<string>
+    {
+        dump_string(const string& kw_, unsigned int lv_) : kw(kw_), lv(lv_) {}
+
+        string operator() (ti_atomic_t ta) const {
+            switch (ta) {
+            case TI_BOOL:   return indent(lv) + "os << (" + kw + " ? \"true\" : \"false\");\n";
+            case TI_INT:    return indent(lv) + "os << " + kw + ";\n";
+            case TI_DOUBLE: return indent(lv) + "os << " + kw + ";\n";
+            case TI_STRING: return indent(lv) + "os << " + kw + ";\n";
+            default: assert(false);
+            }
+            return "???";
+        }
+        string operator() (ti_enum_t te) const {
+            return indent(lv) + "os << enum2str(" + kw + ");\n";
+        }
+        string operator() (pair<unsigned int, type_t> tp) const {
+            // os << "{ ";
+            // unsigned int i#lv;
+            // for (i#lv = 0; i#lv < #kw.size()-1; i++) {
+            //     apply_visitor(dump_string(#kw[i#lv], lv+1), tp.second);
+            //     os << ",";
+            // }
+            // apply_visitor(dump_string(#kw[i#lv]}, lv+1), tp.second);
+            // os << "}";
+            string ret;
+            string istr = "i" + boost::lexical_cast<string>(lv);
+            ret += indent(lv) + "os << \"{\";\n";
+            ret += indent(lv) + "unsigned int " + istr + ";\n";
+            ret += indent(lv) + "for (" + istr + " = 0; " + istr + " < " + kw + ".size(); " + istr + "++) {\n";
+            ret += apply_visitor(dump_string(kw+"["+istr+"]",lv+1),tp.second);
+            ret += indent(lv+1) + "if (" + istr + " < " + kw + ".size()-1) os << \",\";\n";
+            ret += indent(lv) + "}\n";
+            ret += indent(lv) + "os << \"}\";\n";
+            return ret;
+        }
+        string operator() (vector<type_t> tv) const {
+            string ret;
+            ret += indent(lv) + "os << \"{\";\n";
+            unsigned int i;
+            for (i = 0; i < tv.size()-1; i++) {
+                ret += apply_visitor(dump_string("boost::get<"+boost::lexical_cast<string>(i)+">("+kw+")",lv),tv[i]);
+                ret += indent(lv) + "os << \",\";\n";
+            }
+            ret += apply_visitor(dump_string("boost::get<"+boost::lexical_cast<string>(i)+">("+kw+")",lv),tv[i]);
+            ret += indent(lv) + "os << \"}\";\n";
+            return ret;
+        }
+        const string& kw;
+        unsigned int lv;
+    };
 
     string get_typestr(const type_t& ty) { return apply_visitor(type_string(enumid_map_), ty); }
     string get_tsetstr(const type_t& ty, unsigned int lv) { return apply_visitor(tset_string(lv), ty); }
     string get_vsetstr(const type_t& ty, const string& lhs, const string& rhs, unsigned int lv)
         { return apply_visitor(vset_string(enumid_map_,lhs,rhs,lv), ty); }
-    string get_dumpstr(const string& kw, const type_t& ty) { return "\"get_dumpstr\""; }
+    string get_dumpstr(const string& kw, const type_t& ty, unsigned int lv) { return apply_visitor(dump_string(kw+"_", lv), ty); }
 
     static string indent(unsigned int lv) {
-        string ret("\t");
+        string ret;
         for (unsigned int i = 0; i < lv; i++) ret += "\t";
         return ret;
     }
@@ -179,6 +234,7 @@ private:
     void output_implementation_constvals(ostream& os);
     void output_implementation_parser_constructor(ostream& os);
     void output_implementation_config_constructor(ostream& os);
+    void output_implementation_config_enum2str(ostream& os);
     void output_implementation_config_dump(ostream& os);
 
     const string conf_name_;

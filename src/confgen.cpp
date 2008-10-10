@@ -46,6 +46,12 @@ confgen::output_interface(ostream& os)
     output_interface_accessors(os);
 
     os << "\tvoid dump(ostream& os);" << endl;
+    for (map<string,int>::const_iterator iter = enumid_map_.begin();
+         iter != enumid_map_.end();
+         ++iter) {
+        os << "\tstatic const char* enum2str(" << iter->first << " e);" << endl;
+    }
+
     os << "private:" << endl;
 
     output_interface_members(os);
@@ -117,6 +123,7 @@ confgen::output_implementation(ostream& os)
     output_implementation_parser_constructor(os);
     os << "};" << endl;
     output_implementation_config_constructor(os);
+    output_implementation_config_enum2str(os);
     output_implementation_config_dump(os);
 }
 void
@@ -179,7 +186,7 @@ confgen::output_implementation_parser_constructor(ostream& os)
     for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
          iter != itemtype_map_.end();
          ++iter) {
-        os << "\t\ttimap[\"" << iter->first << "\"] = " << get_tsetstr(iter->second, 2) << ";" << endl;
+        os << "\t\ttimap[\"" << iter->first << "\"] = " << get_tsetstr(iter->second, 1) << ";" << endl;
     }
 
     os << "\t}" << endl;
@@ -210,16 +217,16 @@ confgen::output_implementation_config_constructor(ostream& os)
             // オプション項目
             os << "\tif (vm_.find(\"" << iter->first << "\")!=vm_.end()) {" << endl;
             os << "\t\tv = vm_[\"" << iter->first << "\"];" << endl;
-            os << "\t\t" << get_vsetstr(iter->second, iter->first+"_", "v", 2) << endl;
+            os << "\t\t" << get_vsetstr(iter->second, iter->first+"_", "v", 3) << endl;
             os << "\t\thas_" << iter->first << "_ = true;" << endl
                << "\t}" << endl
                << "\telse {" << endl
-               << "\t\thas_" << iter->first << "_ = false;"
+               << "\t\thas_" << iter->first << "_ = false;" << endl
                << "\t}" << endl;
         } else {
             // 必須項目
             os << "\tv = vm_[\"" << iter->first << "\"];" << endl;
-            os << "\t" << get_vsetstr(iter->second, iter->first+"_", "v", 1) << endl;
+            os << "\t" << get_vsetstr(iter->second, iter->first+"_", "v", 2) << endl;
         }
     }
 
@@ -227,11 +234,29 @@ confgen::output_implementation_config_constructor(ostream& os)
 }
 
 void
+confgen::output_implementation_config_enum2str(ostream& os)
+{
+    os << "// definition config enum2str" << endl;
+    for (map<string,vector<string> >::const_iterator iter = enumelem_map_.begin();
+         iter != enumelem_map_.end();
+         ++iter) {
+        os << "const char* " << conf_name_ << "::enum2str(" << iter->first << " e) {" << endl;
+        os << "\tstatic const char* enumelem_tbl[] = {";
+        for (unsigned int i = 0; i < iter->second.size(); i++) {
+            os << "\"" << iter->second[i] << "\", ";
+        }
+        os << "};" << endl;
+        os << "\treturn enumelem_tbl[e];" << endl;
+        os << "}" << endl;
+    }
+}
+
+void
 confgen::output_implementation_config_dump(ostream& os)
 {
     os << "// definition config dump" << endl;
     os << "void " << conf_name_ << "::dump(ostream& os) {" << endl;
-    os << "\tos << \"dump [" << conf_name_ << "] {\" << endl;" << endl;
+    os << "\tos << \"[" << conf_name_ << "]\\n{\" << endl;" << endl;
     for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
          iter != itemtype_map_.end();
          ++iter) {
@@ -240,12 +265,16 @@ confgen::output_implementation_config_dump(ostream& os)
             // os << "option: xxx = " << .... << ";" << endl;
             // os << "option: xxx = NONE" << .... << ";" << endl;
             os << "\tif (has_" << iter->first << "_) {" << endl;
-            os << "\t\tos << \"\\toptional: " << iter->first << " = \" << " << get_dumpstr(iter->first,iter->second) << " << \";\" << endl;" << endl;
+            os << "\t\tos << \"\\toptional: " << iter->first << " = \";" << endl;
+            os << get_dumpstr(iter->first, iter->second, 2);
+            os << "\t\tos << \";\" << endl;" << endl;
             os << "\t} else {" << endl;
             os << "\t\tos << \"\\toptional: " << iter->first << " = NONE;\" << endl;" << endl;
             os << "\t}" << endl;
         } else {
-            os << "\tos << \"\\trequired: " << iter->first << " = \" << " << get_dumpstr(iter->first,iter->second) << " << \";\" << endl;" << endl;
+            os << "\tos << \"\\trequired: " << iter->first << " = \";" << endl;
+            os << get_dumpstr(iter->first, iter->second, 1);
+            os << "\tos << \";\" << endl;" << endl;
         }
     }
     os << "\tos << \"}\" << endl;" << endl;

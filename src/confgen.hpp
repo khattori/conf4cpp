@@ -29,6 +29,8 @@ public:
 
     void output_interface(ostream& os);
     void output_implementation(ostream& os);
+    static void output_interface_header(ostream& os);
+    static void output_implementation_header(ostream& os, const string& incfile);
 
 private:
     //
@@ -225,8 +227,8 @@ private:
         for (unsigned int i = 0; i < lv; i++) ret += "\t";
         return ret;
     }
+    static void output_file_header(ostream& os);
 
-    void output_file_header(ostream& os);
     void output_interface_enumdefs(ostream& os);
     void output_interface_accessors(ostream& os);
     void output_interface_members(ostream& os);

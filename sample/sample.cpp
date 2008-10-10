@@ -1,5 +1,5 @@
 #include <conf4cpp.hpp>
-#include "sample_conf.out.hpp"
+#include "conf.out.hpp"
 
 int main(int argc, char* args[])
 {

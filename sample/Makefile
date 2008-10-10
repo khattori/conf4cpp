@@ -1,6 +1,6 @@
 TARGET	= sample
 SRCS	= \
-	sample_conf.out.cpp \
+	conf.out.cpp \
 	sample.cpp
 
 CONF4CPP= ../src/conf4cpp
@@ -16,9 +16,9 @@ OBJS	= $(SRCS:.cpp=.o)
 $(TARGET)	: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LIBS)
 
-sample_conf.out.cpp : sample.conf.def
+conf.out.cpp : sample.conf.def
 	$(CONF4CPP) $<
 
 .PHONY: clean
 clean	:
-	rm -fr $(OBJS) $(TARGET) $(DEPS) sample_conf.out.cpp sample_conf.out.hpp
+	rm -fr $(OBJS) $(TARGET) $(DEPS) conf.out.cpp conf.out.hpp

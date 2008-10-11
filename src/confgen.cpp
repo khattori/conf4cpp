@@ -153,13 +153,15 @@ confgen::output_implementation_keywords(ostream& os)
     os << "\tstruct keywords : symbols<string>" << endl;
     os << "\t{" << endl;
     os << "\t\tkeywords() {" << endl;
-    os << "\t\t\tadd" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
-         iter != itemtype_map_.end();
-         ++iter) {
-        os << "\t\t\t(\"" << iter->first << "\", \"" << iter->first << "\")" << endl;
+    if (itemtype_map_.begin() != itemtype_map_.end()) {
+    	os << "\t\t\tadd" << endl;
+    	for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
+             iter != itemtype_map_.end();
+             ++iter) {
+            os << "\t\t\t(\"" << iter->first << "\", \"" << iter->first << "\")" << endl;
+    	}
+        os << "\t\t\t;" << endl;
     }
-    os << "\t\t\t;" << endl;
     os << "\t\t}" << endl;
     os << "\t};" << endl;
 }

@@ -4,9 +4,75 @@
 
 *******************************************************************************
 
-conf4cppは設定ファイルを読み込んでパースするクラスを生成するC++のコードジェネレ
-ータです．
+conf4cppは設定ファイルの定義ファイルから，その設定ファイルを読み込んで
+値を取得するためのC++のコードを自動生成します．conf4cppを使えば，アプ
+リケーションごとに何度も設定ファイルを読み込むための独自のコードを作成
+する手間を省くことができます．
 
-【使い方】
+
+【インストール方法】
+
+makeしてからmake installを実行してください．
+
+% make
+# make install
+
+デフォルトでは，/usr/local/include/conf4cppの下にヘッダファイル，
+/usr/local/binの下にconf4cppプログラムがコピーされます．
 
 
+【動作環境】
+
+Boost 1.33.1 以上が必要です．
+
+
+【簡単な例】
+
+以下のような設定ファイル(sample.conf)の書式を例に取り上げます．
+
+myname  = "hattori";
+age     = 36;
+coutry  = "Japan";
+friends = "yamada", "suzuki", "ohtake";
+
+このような設定ファイルの書式に対応する定義は，たとえば以下のように記述
+することができます．
+
+config sample_conf {
+	required myname  : string;
+	required age     : int;
+	optional country : string;
+	optional friends : list<string>;
+}
+
+この定義ファイルをconf4cppでコンパイルすると，conf.out.hppと
+conf.out.cppファイルが生成されます．
+
+あなたのプログラムからconf.out.hppをインクルードして，conf.out.cppとリ
+ンクするだけで，簡単に設定ファイルを読み込んで，設定項目を参照すること
+ができます．例を以下に示します．
+
+#include "conf.out.hpp"
+
+...
+
+sample_conf conf("sample.conf");	 // sample.confを読み込む
+
+cout << "myname is " << conf.myname() << endl;
+cout << "age is    " << conf.age()  << endl;
+if (conf.has_contry()) {
+    cout << "country is " << conf.country() << endl;
+}
+if (conf.has_friends()) {
+    for (unsigned int i = 0; i < conf.friends().size(); i++) {
+	cout << "friends " << conf.friends()[i] << endl;
+    }
+}
+
+...
+
+より詳しくはconf4cppのマニュアルを参照してください．
+
+--
+Copyright (c) 2008 Kenta Hattori, All rights reserved.
+$Id$

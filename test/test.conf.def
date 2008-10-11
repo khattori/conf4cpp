@@ -1,0 +1,11 @@
+config test_conf {
+	required int_val	: int;
+   	required bool_val	: bool;
+	optional string_val	: string;
+	optional real_val	: real;
+	required string_list	: list<string>;
+	required string0_list	: list[0]<string>;
+	required int1_list	: list[1]<int>;
+	required bool9_list	: list[9]<bool>;
+	required real_llist	: list<list<real>>;
+}

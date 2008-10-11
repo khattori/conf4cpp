@@ -1,6 +1,6 @@
-TARGET	= test_no_items
+TARGET	= conf_no_items
 SRCS	= \
-	test_no_items_conf.out.cpp \
+	conf.out.cpp \
 	conf_no_items.cpp
 
 CONF4CPP= ../../src/conf4cpp
@@ -16,7 +16,7 @@ OBJS	= $(SRCS:.cpp=.o)
 $(TARGET)	: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LIBS)
 
-conf.out.cpp : test_no_items.conf.def
+conf.out.cpp : no_items.conf.def
 	$(CONF4CPP) $<
 
 .PHONY: clean

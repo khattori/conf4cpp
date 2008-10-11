@@ -6,7 +6,9 @@ SRCS	= \
 	confgen.cpp
 
 CXXFLAGS= -Wall
+#CPPFLAGS= -I../inc
 CPPFLAGS= -I/usr/include/boost-1_33_1 -I../inc
+
 LIBS	=
 
 
@@ -18,6 +20,11 @@ DEPS	= $(SRCS:.cpp=.d)
 
 $(TARGET)	: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LIBS)
+
+
+.PHONY: install
+install	: $(TARGET)
+	cp $(TARGET) $(PREFIX)/bin/$(TARGET)
 
 .PHONY: clean
 clean	:

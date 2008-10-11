@@ -1,4 +1,7 @@
 config test_conf {
+	enum week_t { MON, TUE, WED, THU, FRI, SAT, SUN }
+	enum fruit_t { Apple, Orange, Peach, Lemon }
+
 	required int_val	: int;
    	required bool_val	: bool;
 	optional string_val	: string;
@@ -8,4 +11,8 @@ config test_conf {
 	required int1_list	: list[1]<int>;
 	required bool9_list	: list[9]<bool>;
 	required real_llist	: list<list<real>>;
+ 		 stri_list	: list<string,int>;
+		 rib_tuple	: real,int,bool;
+		 string_tuple	: ((string));	
+		 week_fruits	: week_t,list<fruit_t>;
 }

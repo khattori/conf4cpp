@@ -1,7 +1,7 @@
-TARGET	= testconf
+TARGET	= test_conf
 SRCS	= \
 	conf.out.cpp \
-	testconf.cpp
+	test_conf.cpp
 
 CONF4CPP= ../src/conf4cpp
 CXXFLAGS= -Wall

@@ -192,8 +192,7 @@ private:
             string ret;
             string istr = "i" + boost::lexical_cast<string>(lv);
             ret += indent(lv) + "os << \"{\";\n";
-            ret += indent(lv) + "unsigned int " + istr + ";\n";
-            ret += indent(lv) + "for (" + istr + " = 0; " + istr + " < " + kw + ".size(); " + istr + "++) {\n";
+            ret += indent(lv) + "for (unsigned int " + istr + " = 0; " + istr + " < " + kw + ".size(); " + istr + "++) {\n";
             ret += apply_visitor(dump_string(kw+"["+istr+"]",lv+1),tp.second);
             ret += indent(lv+1) + "if (" + istr + " < " + kw + ".size()-1) os << \",\";\n";
             ret += indent(lv) + "}\n";

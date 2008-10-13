@@ -35,7 +35,7 @@ namespace conf4cpp
 	    try {
 		parse_info<position_iterator_t> pinfo = parse(begin, end, g, eol_p|space_p|comment_p("#"));
 		if (!pinfo.full) throw error(parse_error, pinfo.stop.get_position().line);
-	    } catch(boost::spirit::parser_error<error_t,position_iterator_t>& e) {
+	    } catch (boost::spirit::parser_error<error_t,position_iterator_t>& e) {
 		throw error(e.descriptor, e.where.get_position().line);
 	    }
 	    for (unsigned int i = 0; i < g.reqs.size(); i++) {

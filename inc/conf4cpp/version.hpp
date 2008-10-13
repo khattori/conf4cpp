@@ -5,14 +5,9 @@
  * Copyright (c) 2008- Kenta Hattori
  *
  *===========================================================================*/
-#ifndef CONF4CPP_HPP
-#define CONF4CPP_HPP
+#ifndef VERSION_HPP
+#define VERSION_HPP
 
-#include <conf4cpp/version.hpp>
-#include <conf4cpp/error.hpp>
-#include <conf4cpp/type.hpp>
-#include <conf4cpp/var.hpp>
-#include <conf4cpp/parser.hpp>
-#include <conf4cpp/config.hpp>
+#define CONF4CPP_VERSION "0.0.1"
 
-#endif /* CONF4CPP_HPP */
+#endif /* VERSION_HPP */

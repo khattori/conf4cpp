@@ -1,5 +1,3 @@
-PREFIX	= /usr/local
-
 TARGET	= conf4cpp
 SRCS	= \
 	conf4cpp.cpp \
@@ -20,11 +18,6 @@ DEPS	= $(SRCS:.cpp=.d)
 
 $(TARGET)	: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LIBS)
-
-
-.PHONY: install
-install	: $(TARGET)
-	cp $(TARGET) $(PREFIX)/bin/$(TARGET)
 
 .PHONY: clean
 clean	:

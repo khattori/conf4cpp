@@ -9,12 +9,13 @@
 #include <stdlib.h>
 #include <getopt.h>
 
+#include <conf4cpp/version.hpp>
 #include "confdef_g.hpp"
 #include "confgen.hpp"
 
 using namespace std;
 
-static const char* version = "0.0.1";
+static const char* version = CONF4CPP_VERSION;
 static const char* program = "conf4cpp";
 static void print_version()
 {
@@ -28,7 +29,6 @@ static void print_usage()
 	    "  -v, --version            display version information\n"
 	    "  -o, --output=name        specify output file prefix name\n");
 }
-
 
 int main(int argc, char* argv[])
 {
@@ -90,28 +90,31 @@ int main(int argc, char* argv[])
 
     while (optind < argc) {
 	const char* input_file = argv[optind++];
-	file_iterator<> first(input_file);
+
+        typedef file_iterator<> file_iterator_t;
+	file_iterator_t first(input_file);
 	if (!first) {
 	    fprintf(stderr, "%s: unable to open file\n", input_file);
-            ofs_hpp.close(); remove(tmp_hpp);
-            ofs_cpp.close(); remove(tmp_cpp);
-	    return -1;
+            goto error_return;
 	}
-	file_iterator<> last = first.make_end();
-	position_iterator<file_iterator<> > begin(first, last, input_file);
-	position_iterator<file_iterator<> > end;
+	file_iterator_t last = first.make_end();
+
+        typedef position_iterator<file_iterator_t> position_iterator_t;
+	position_iterator_t begin(first, last, input_file);
+	position_iterator_t end;
 	begin.set_tabchars(8);
 
 	confdef_g g;
-	parse_info<position_iterator<file_iterator<> > > pinfo
-	    = parse(begin, end, g, eol_p|space_p|comment_p("#"));
-	if (!pinfo.full) {
-	    fprintf(stderr, "%s: %d: parse error\n", input_file, pinfo.stop.get_position().line);
-            ofs_hpp.close(); remove(tmp_hpp);
-            ofs_cpp.close(); remove(tmp_cpp);
-	    return -1;
-	}
-        //       confgen gen(g.conf_name, g.itemtype_map, g.itemreq_map, g.enumelem_map, g.enumid_map);
+        try {
+            parse_info<position_iterator_t> pinfo = parse(begin, end, g, eol_p|space_p|comment_p("#"));
+            if (!pinfo.full) {
+                fprintf(stderr, "%s: %d: parse error\n", input_file, pinfo.stop.get_position().line);
+                goto error_return;
+            }
+        } catch (boost::spirit::parser_error<string,position_iterator_t>& e) {
+            fprintf(stderr, "%s: %d: %s\n", input_file, e.where.get_position().line, e.descriptor.c_str());
+            goto error_return;
+        }
         confgen gen(g);
 
         gen.output_interface(ofs_hpp);
@@ -120,16 +123,20 @@ int main(int argc, char* argv[])
 
     if (rename(tmp_hpp, interface_file_name.c_str()) < 0) {
         fprintf(stderr, "cannot create %s\n", interface_file_name.c_str());
-        remove(tmp_hpp);
-        remove(tmp_cpp);
-        return -1;
+        goto error_return;
     }
     if (rename(tmp_cpp, implementation_file_name.c_str()) < 0) {
         fprintf(stderr, "cannot create %s\n", implementation_file_name.c_str());
-        remove(interface_file_name.c_str());
-        remove(tmp_cpp);
+        ofs_hpp.close(); remove(interface_file_name.c_str());
+        goto error_return2;
     }
 
     return 0;
-}
 
+  error_return:
+    ofs_hpp.close(); remove(tmp_hpp);
+  error_return2:
+    ofs_cpp.close(); remove(tmp_cpp);
+
+    return -1;
+}

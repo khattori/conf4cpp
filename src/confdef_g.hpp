@@ -47,6 +47,16 @@ struct confdef_g : public grammar<confdef_g>
                 ;
         }
     };
+    struct error
+    {
+        string msg;
+        error(const string& msg_) : msg(msg_) {}
+        template<typename IteratorT>
+        void operator() (const IteratorT& first, const IteratorT& last) const {
+            throw_(first, msg);
+        }
+    };
+
     template<symtype_t styp>
     struct add_sym
     {
@@ -160,7 +170,7 @@ struct confdef_g : public grammar<confdef_g>
 	    id_r
 		= lexeme_d[ (alpha_p|'_') >> +(alnum_p|'_') ];
             new_sym
-                = (id_r - sym_p) | sym_p[var(cout) << "symbol redefined\n"] >> nothing_p;
+                = (id_r - sym_p) | (sym_p >> eps_p)[error("symbol redefined")] >> nothing_p;
             newconf_sym
                 = new_sym[add_sym<SYM_CONFIG>(sym_p)][newconf_sym.val=construct_<string>(arg1,arg2)];
             newitem_sym

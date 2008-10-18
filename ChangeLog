@@ -1,0 +1,4 @@
+2008-10-18  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* デフォルト値を設定できるように定義ファイルの文法解析部分の処理を修正
+

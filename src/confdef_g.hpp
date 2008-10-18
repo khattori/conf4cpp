@@ -20,6 +20,7 @@ struct confdef_g : public grammar<confdef_g>
     struct type_val   : closure<type_val, type_t>            { member1 val; };
     struct typels_val : closure<typels_val, type_t, vector<type_t> > { member1 val; member2 tys; };
     struct uint_val   : closure<uint_val, unsigned int>      { member1 val; };
+    struct bool_val   : closure<bool_val, bool>              { member1 val; };
     struct tyuint_val : closure<tyuint_val, type_t, unsigned int> { member1 val; member2 len; };
     struct string_val : closure<string_val, string>          { member1 val; };
     struct strvec_val : closure<strvec_val, vector<string> > { member1 val; };
@@ -103,10 +104,14 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT,tyuint_val::context_t> postfix_texp_r ;
 	rule<ScannerT,typels_val::context_t> compound_texp_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
+        rule<ScannerT> value_r;
 	rule<ScannerT> mandatory_r, constraints_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
         rule<ScannerT> new_sym, id_r;
         rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
+        rule<ScannerT,string_val::context_t> string_r;
+        rule<ScannerT,bool_val::context_t> bool_r;
+
 	sym_s sym_p;
 
         definition(confdef_g const& self) {
@@ -157,11 +162,24 @@ struct confdef_g : public grammar<confdef_g>
 	    list_type_r
 		= str_p("list")[list_type_r.val=0] >> !('[' >> uint_p[list_type_r.val=arg1] >> ']');
 	    atomic_texp_r
-		= sym_p[var(self.cur_type)=arg1]
+		= sym_p[var(self.cur_type)=arg1] 
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[atomic_texp_r.val=static_cast_<ti_atomic_t>(var(self.cur_type.second))]
+                    >> !( '(' >> value_r >> ')' )
 		| sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_ENUM)[atomic_texp_r.val=construct_<ti_enum_t>(var(self.cur_type.second))]
+                    >> !( '(' >> value_r >> ')' )
 		| '(' >> compound_texp_r[atomic_texp_r.val=arg1] >> ')';
+            value_r
+                = strict_real_p
+                | int_p
+                | bool_r
+                | string_r
+                | sym_p[var(self.cur_type)=arg1] >> eps_p(var(self.cur_type.first)==SYM_ELEM);
+            bool_r
+                = str_p("true") [bool_r.val = true]
+                | str_p("false")[bool_r.val = false];
+            string_r
+                = confix_p('"', (*c_escape_ch_p)[string_r.val = construct_<string>(arg1,arg2)], '"');
 
             // not yet implemented
 	    constraints_r

@@ -25,7 +25,8 @@ public:
           itemtype_map_(g.itemtype_map),
           itemreq_map_(g.itemreq_map),
           enumelem_map_(g.enumelem_map),
-          enumid_map_(g.enumid_map) {}
+          enumid_map_(g.enumid_map),
+          defval_map_(g.defval_map) {}
 
     void output_interface(ostream& os);
     void output_implementation(ostream& os);
@@ -243,6 +244,7 @@ private:
     const map<string, bool> itemreq_map_;
     const map<string, vector<string> > enumelem_map_;
     const map<string, int> enumid_map_;
+    const map<string, var_t> defval_map_;
 };
 
 #endif /* CONFGEN_HPP */

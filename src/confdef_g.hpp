@@ -17,11 +17,11 @@ using namespace conf4cpp;
 
 struct confdef_g : public grammar<confdef_g>
 {
-    struct type_val   : closure<type_val, type_t>            { member1 val; };
-    struct typels_val : closure<typels_val, type_t, vector<type_t> > { member1 val; member2 tys; };
+    struct type_val   : closure<type_val, type_t, var_t>     { member1 val; member2 def;};
+    struct typels_val : closure<typels_val, vector<type_t>, vector<var_t> > { member1 val; member2 dfs; };
     struct uint_val   : closure<uint_val, unsigned int>      { member1 val; };
     struct bool_val   : closure<bool_val, bool>              { member1 val; };
-    struct tyuint_val : closure<tyuint_val, type_t, unsigned int> { member1 val; member2 len; };
+    struct tyuint_val : closure<tyuint_val, type_t, unsigned int, var_t> { member1 val; member2 len; member3 def; };
     struct string_val : closure<string_val, string>          { member1 val; };
     struct strvec_val : closure<strvec_val, vector<string> > { member1 val; };
     enum symtype_t {
@@ -96,7 +96,17 @@ struct confdef_g : public grammar<confdef_g>
 	}
     };
     static void add_value(vector<type_t>& tv, const type_t& ty) { tv.push_back(ty); }
-
+    static var_t def_value(ti_atomic_t ta) {
+        switch (ta) {
+        case TI_BOOL:   return bool(false);
+        case TI_INT:    return int(0);
+        case TI_DOUBLE: return double(0.0);
+        case TI_STRING: return string("");
+        default:
+            assert(false);
+        }
+    }
+    static void add_defv(vector<var_t>& vs, const var_t& val) { vs.push_back(val); }
     template <typename ScannerT> struct definition
     {
 	rule<ScannerT> config_r, spec_r, itemdef_r, enumdef_r;
@@ -104,7 +114,7 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT,tyuint_val::context_t> postfix_texp_r ;
 	rule<ScannerT,typels_val::context_t> compound_texp_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
-        rule<ScannerT> value_r;
+        rule<ScannerT,variant_val::context_t> value_r;
 	rule<ScannerT> mandatory_r, constraints_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
         rule<ScannerT> new_sym, id_r;
@@ -152,29 +162,31 @@ struct confdef_g : public grammar<confdef_g>
             texp_r
                 = compound_texp_r[texp_r.val=phoenix::bind(strip_type())(arg1)];
 	    compound_texp_r
-		= postfix_texp_r[compound_texp_r.tys=construct_<vector<type_t> >(1,arg1)]
-                    >> *(',' >> postfix_texp_r[phoenix::bind(&add_value)(compound_texp_r.tys,arg1)])
-                    >> eps_p[compound_texp_r.val=compound_texp_r.tys];
+		= postfix_texp_r[compound_texp_r.val=construct_<vector<type_t> >(1,arg1)]/*[compound_texp_r.dfs=construct_<vector<var_t> >(1,postfix_texp_r.def)]*/
+                    >> *(',' >> postfix_texp_r[phoenix::bind(&add_value)(compound_texp_r.val,arg1)]/*[phoenix::bind(&add_defv)(compound_texp_r.dfs,postfix_texp_r.def)]*/ );
 	    postfix_texp_r
 		= list_type_r[postfix_texp_r.len=arg1]
-                    >> '<' >> texp_r[postfix_texp_r.val=construct_<pair<int,type_t> >(postfix_texp_r.len,arg1)] >> '>'
-	        | atomic_texp_r[postfix_texp_r.val=arg1] >> !('[' >> constraints_r >> ']');
+                    >> '<' >> texp_r[postfix_texp_r.val=construct_<pair<int,type_t> >(postfix_texp_r.len,arg1)]/*[postfix_texp_r.def=texp_r.def]*/ >> '>'
+	        | atomic_texp_r[postfix_texp_r.val=arg1]/*[postfix_texp_r.def=atomic_texp_r.def]*/ >> !('[' >> constraints_r >> ']');
 	    list_type_r
 		= str_p("list")[list_type_r.val=0] >> !('[' >> uint_p[list_type_r.val=arg1] >> ']');
 	    atomic_texp_r
-		= sym_p[var(self.cur_type)=arg1] 
-                    >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[atomic_texp_r.val=static_cast_<ti_atomic_t>(var(self.cur_type.second))]
-                    >> !( '(' >> value_r >> ')' )
+		= sym_p[var(self.cur_type)=arg1]
+                    >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)
+                              [atomic_texp_r.val=static_cast_<ti_atomic_t>(var(self.cur_type.second))]
+                              [atomic_texp_r.def=phoenix::bind(&def_value)(static_cast_<ti_atomic_t>(var(self.cur_type.second)))]
+                    >> !( '(' >> value_r[atomic_texp_r.def=arg1] >> ')' )
 		| sym_p[var(self.cur_type)=arg1]
-                    >> eps_p(var(self.cur_type.first)==SYM_ENUM)[atomic_texp_r.val=construct_<ti_enum_t>(var(self.cur_type.second))]
-                    >> !( '(' >> value_r >> ')' )
-		| '(' >> compound_texp_r[atomic_texp_r.val=arg1] >> ')';
+                    >> eps_p(var(self.cur_type.first)==SYM_ENUM)
+                              [atomic_texp_r.val=construct_<ti_enum_t>(var(self.cur_type.second))]
+                    >> !( '(' >> value_r[atomic_texp_r.def=arg1] >> ')' )
+		| '(' >> compound_texp_r[atomic_texp_r.val=arg1]/*[atomic_texp_r.def=compound_texp_r.dfs]*/ >> ')';
             value_r
-                = strict_real_p
-                | int_p
-                | bool_r
-                | string_r
-                | sym_p[var(self.cur_type)=arg1] >> eps_p(var(self.cur_type.first)==SYM_ELEM);
+                = strict_real_p[value_r.val=arg1]
+                | int_p[value_r.val=arg1]
+                | bool_r[value_r.val=arg1]
+                | string_r[value_r.val=arg1]
+                | (sym_p[var(self.cur_type)=arg1] >> eps_p(var(self.cur_type.first)==SYM_ELEM))[value_r.val=construct_<string>(arg1,arg2)];
             bool_r
                 = str_p("true") [bool_r.val = true]
                 | str_p("false")[bool_r.val = false];
@@ -214,6 +226,7 @@ struct confdef_g : public grammar<confdef_g>
     mutable map<string, vector<string> > enumelem_map;
     mutable map<string, int> enumid_map;
     mutable map<string, bool> itemreq_map;
+    mutable map<string, var_t> defval_map;
     mutable string conf_name;
 };
 

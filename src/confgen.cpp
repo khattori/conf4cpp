@@ -69,8 +69,8 @@ confgen::output_interface(ostream& os)
     output_interface_accessors(os);
 
     os << "\tvoid dump(ostream& os);" << endl;
-    for (map<string,int>::const_iterator iter = enumid_map_.begin();
-         iter != enumid_map_.end();
+    for (map<string,vector<string> >::const_iterator iter = enumelem_map_.begin();
+         iter != enumelem_map_.end();
          ++iter) {
         os << "\tstatic const char* enum2str(" << iter->first << " e);" << endl;
     }
@@ -168,17 +168,17 @@ confgen::output_implementation_keywords(ostream& os)
 void
 confgen::output_implementation_constvals(ostream& os)
 {
-    os << "\tstruct constvals : symbols<pair<int,int> >" << endl;
+    os << "\tstruct constvals : symbols<pair<string,int> >" << endl;
     os << "\t{" << endl;
     os << "\t\tconstvals() {" << endl;
-    if (enumid_map_.begin() != enumid_map_.end()) {
+    if (enumelem_map_.begin() != enumelem_map_.end()) {
         os << "\t\t\tadd" << endl;
-        for (map<string,int>::const_iterator iter = enumid_map_.begin();
-             iter != enumid_map_.end();
+        for (map<string,vector<string> >::const_iterator iter = enumelem_map_.begin();
+             iter != enumelem_map_.end();
              ++iter) {
             for (unsigned int i = 0; i < enumelem_map_.find(iter->first)->second.size(); i++) {
-                os << "\t\t\t(\"" << enumelem_map_.find(iter->first)->second[i] << "\", make_pair("
-                   << iter->second << ", " << conf_name_ << "::" << enumelem_map_.find(iter->first)->second[i] << "))" << endl;
+                os << "\t\t\t(\"" << enumelem_map_.find(iter->first)->second[i] << "\", make_pair(string(\""
+                   << iter->first << "\"), " << conf_name_ << "::" << enumelem_map_.find(iter->first)->second[i] << "))" << endl;
             }
         }
         os << "\t\t\t;" << endl;

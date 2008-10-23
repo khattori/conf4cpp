@@ -25,7 +25,6 @@ public:
           itemtype_map_(g.itemtype_map),
           itemreq_map_(g.itemreq_map),
           enumelem_map_(g.enumelem_map),
-          enumid_map_(g.enumid_map),
           defval_map_(g.defval_map) {}
 
     void output_interface(ostream& os);
@@ -39,7 +38,6 @@ private:
     // 
     struct type_string : public boost::static_visitor<string>
     {
-	type_string(const map<string,int>& eidm_) : eidm(eidm_) {}
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
             case TI_BOOL:   return "bool"; 
@@ -50,26 +48,19 @@ private:
             }
         }
         string operator() (ti_enum_t te) const {
-            for (map<string,int>::const_iterator iter = eidm.begin();
-                 iter != eidm.end();
-                 ++iter) {
-                if (iter->second == te.eid) return iter->first;
-            }
-            assert(false);
-            return "???";
+            return te.eid;
         }
         string operator() (pair<unsigned int, type_t> tp) const {
-            return string("vector<") + apply_visitor(type_string(eidm),tp.second) + " >";
+            return string("vector<") + apply_visitor(type_string(),tp.second) + " >";
         }
         string operator() (vector<type_t> tv) const {
             string ret("tuple<");
             for (unsigned int i = 0; i < tv.size()-1; i++) {
-                ret += apply_visitor(type_string(eidm),tv[i]) + ",";
+                ret += apply_visitor(type_string(),tv[i]) + ",";
             }
-            ret += apply_visitor(type_string(eidm),tv.back()) + " >";
+            ret += apply_visitor(type_string(),tv.back()) + " >";
             return ret;
         }
-	const map<string,int>& eidm;
     };
     //
     // format string for type information 
@@ -88,7 +79,7 @@ private:
             }
         }
         string operator() (ti_enum_t te) const {
-            return string("ti_enum_t(") + boost::lexical_cast<string>(te.eid) + ")";
+            return string("ti_enum_t(\"") + boost::lexical_cast<string>(te.eid) + "\")";
         }
         string operator() (pair<unsigned int, type_t> tp) const {
             return string("make_pair(") + boost::lexical_cast<string>(tp.first) + "," + apply_visitor(tset_string(lv+1),tp.second) + ")";
@@ -108,8 +99,8 @@ private:
 
     struct vset_string : public boost::static_visitor<string>
     {
-        vset_string(const map<string,int>& eidm_, const string& lhs_, const string& rhs_, unsigned int lv_)
-            : eidm(eidm_), lhs(lhs_), rhs(rhs_), lv(lv_) {}
+        vset_string(const map<string,vector<string> >& eem_, const string& lhs_, const string& rhs_, unsigned int lv_)
+            : eem(eem_), lhs(lhs_), rhs(rhs_), lv(lv_) {}
 
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
@@ -121,22 +112,17 @@ private:
             }
         }
         string operator() (ti_enum_t te) const {
-            for (map<string,int>::const_iterator iter = eidm.begin();
-                 iter != eidm.end();
-                 ++iter) {
-                if (iter->second == te.eid) {
-                    return lhs + " = " + iter->first + "(var2<pair<int,int> >(" + rhs + ").second);";
-                }
+            if (eem.find(te.eid) == eem.end()) {
+                assert(false);
             }
-            assert(false);
-            return "???";
+            return lhs + " = " + te.eid + "(var2<pair<string,int> >(" + rhs + ").second);";
         }
         string operator() (pair<unsigned int, type_t> tp) const {
 	    string istr = "i"+boost::lexical_cast<string>(lv);
             string ret("vector<var_t> " + lhs + "v = var2<vector<var_t> >(" + rhs + ");\n" + indent(lv-1));
             ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + lhs + "v.size(); "+istr+"++) {\n" + indent(lv);
-            ret += apply_visitor(type_string(eidm),tp.second) + " " + lhs + "iv;\n" + indent(lv);
-            ret += apply_visitor(vset_string(eidm,lhs+"iv",lhs+"v["+istr+"]",lv+1),tp.second) + "\n" + indent(lv);
+            ret += apply_visitor(type_string(),tp.second) + " " + lhs + "iv;\n" + indent(lv);
+            ret += apply_visitor(vset_string(eem,lhs+"iv",lhs+"v["+istr+"]",lv+1),tp.second) + "\n" + indent(lv);
             ret += lhs + ".push_back(" + lhs + "iv);\n" + indent(lv-1);
             ret += "}";
             return ret;
@@ -144,10 +130,10 @@ private:
         string operator() (vector<type_t> tv) const {
             string ret;
             for (unsigned int i = 0; i < tv.size(); i++) {
-                string tystr = apply_visitor(type_string(eidm), tv[i]);
+                string tystr = apply_visitor(type_string(), tv[i]);
                 string istr = boost::lexical_cast<string>(i);
                 ret += tystr + " " + lhs + istr + ";\n" + indent(lv-1);
-                ret += apply_visitor(vset_string(eidm,lhs+istr,"var2<vector<var_t> >("+rhs+")["+istr+"]",lv),tv[i]) + "\n" + indent(lv-1);
+                ret += apply_visitor(vset_string(eem,lhs+istr,"var2<vector<var_t> >("+rhs+")["+istr+"]",lv),tv[i]) + "\n" + indent(lv-1);
             }
             ret += lhs + " = make_tuple(";
             for (unsigned int i = 0; i < tv.size()-1; i++) {
@@ -156,7 +142,7 @@ private:
             ret += lhs + boost::lexical_cast<string>(tv.size()-1) + ");";
             return ret;
         }
-        const map<string,int>& eidm;
+        const map<string, vector<string> >& eem;
         const string& lhs;
         const string& rhs;
         unsigned int lv;
@@ -216,10 +202,10 @@ private:
         unsigned int lv;
     };
 
-    string get_typestr(const type_t& ty) { return apply_visitor(type_string(enumid_map_), ty); }
+    string get_typestr(const type_t& ty) { return apply_visitor(type_string(), ty); }
     string get_tsetstr(const type_t& ty, unsigned int lv) { return apply_visitor(tset_string(lv), ty); }
     string get_vsetstr(const type_t& ty, const string& lhs, const string& rhs, unsigned int lv)
-        { return apply_visitor(vset_string(enumid_map_,lhs,rhs,lv), ty); }
+        { return apply_visitor(vset_string(enumelem_map_,lhs,rhs,lv), ty); }
     string get_dumpstr(const string& kw, const type_t& ty, unsigned int lv) { return apply_visitor(dump_string(kw+"_", lv), ty); }
 
     static string indent(unsigned int lv) {
@@ -243,7 +229,6 @@ private:
     const map<string, type_t> itemtype_map_;
     const map<string, bool> itemreq_map_;
     const map<string, vector<string> > enumelem_map_;
-    const map<string, int> enumid_map_;
     const map<string, var_t> defval_map_;
 };
 

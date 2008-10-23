@@ -21,8 +21,8 @@ namespace conf4cpp
 {
     enum ti_atomic_t { TI_BOOL, TI_INT, TI_DOUBLE, TI_STRING };
     struct ti_enum_t {
-	ti_enum_t(int eid_) : eid(eid_) {}
-	int eid;
+	ti_enum_t(const string& eid_) : eid(eid_) {}
+	string eid;
     };
     typedef boost::make_recursive_variant<
 	ti_atomic_t,
@@ -30,6 +30,12 @@ namespace conf4cpp
 	pair<int, boost::recursive_variant_>,   // vector type 
 	vector<boost::recursive_variant_>       // tuple type
     >::type type_t;
+    enum { IS_ATOM_T, IS_ENUM_T, IS_VECT_T, IS_TUPLE_T };
+
+    inline bool is_atomic_type(const type_t& typ) { return typ.which() == IS_ATOM_T; }
+    inline bool is_enum_type(const type_t& typ)   { return typ.which() == IS_ENUM_T; }
+    inline bool is_vector_type(const type_t& typ) { return typ.which() == IS_VECT_T; }
+    inline bool is_tuple_type(const type_t& typ)  { return typ.which() == IS_TUPLE_T; }
 
     inline bool is_prim_type(const type_t& typ) { return typ.which() < 2; }
     inline bool is_comp_type(const type_t& typ) { return !is_prim_type(typ); }
@@ -50,7 +56,7 @@ namespace conf4cpp
 	}
 	error_t operator() (ti_enum_t te) const {
 	    if (!is_pair(v_)) return type_mismatch;
-	    pair<int,int> p = var2<pair<int,int> >(v_);
+	    pair<string,int> p = var2<pair<string,int> >(v_);
 	    if (p.first != te.eid) return type_mismatch;
 	    return error_none;
 	}

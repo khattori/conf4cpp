@@ -19,7 +19,7 @@ namespace conf4cpp
 	int,
 	double,
 	string,
-	pair<int,int>,
+	pair<string,int>,
 	vector<boost::recursive_variant_>
     >::type var_t;
 
@@ -44,7 +44,7 @@ namespace conf4cpp
     template<> inline const int&           var2(const var_t &v) { assert(is_int(v));    return boost::get<int>(v);            }
     template<> inline const double&        var2(const var_t &v) { assert(is_double(v)); return boost::get<double>(v);         }
     template<> inline const string&        var2(const var_t &v) { assert(is_string(v)); return boost::get<string>(v);         }
-    template<> inline const pair<int,int>& var2(const var_t &v) { assert(is_pair(v));   return boost::get<pair<int,int> >(v); }
+    template<> inline const pair<string,int>& var2(const var_t &v) { assert(is_pair(v));   return boost::get<pair<string,int> >(v); }
     template<> inline const vector<var_t>& var2(const var_t &v) { assert(is_vector(v)); return boost::get<vector<var_t> >(v); }
 }
 

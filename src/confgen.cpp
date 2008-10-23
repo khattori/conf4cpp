@@ -101,10 +101,10 @@ void
 confgen::output_interface_accessors(ostream& os)
 {
     os << "\t// definitions of accessors" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
-         iter != itemtype_map_.end();
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+         iter != itemtypvar_map_.end();
          ++iter) {
-        os << "\tconst " << get_typestr(iter->second) << "& " << iter->first << "() const { return " << iter->first << "_; }" << endl;
+        os << "\tconst " << get_typestr(iter->second.first) << "& " << iter->first << "() const { return " << iter->first << "_; }" << endl;
         if (!itemreq_map_.find(iter->first)->second) os << "\tbool has_" << iter->first << "() const { return has_" << iter->first << "_; }" << endl;
     }
 }
@@ -113,10 +113,10 @@ void
 confgen::output_interface_members(ostream& os)
 {
     os << "\t// definitions of members" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
-        iter != itemtype_map_.end();
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+        iter != itemtypvar_map_.end();
         ++iter) {
-        os << "\t" << get_typestr(iter->second) << " " << iter->first << "_;" << endl;
+        os << "\t" << get_typestr(iter->second.first) << " " << iter->first << "_;" << endl;
         if (!itemreq_map_.find(iter->first)->second) os << "\tbool has_" << iter->first << "_;" << endl;
     }
 
@@ -153,10 +153,10 @@ confgen::output_implementation_keywords(ostream& os)
     os << "\tstruct keywords : symbols<string>" << endl;
     os << "\t{" << endl;
     os << "\t\tkeywords() {" << endl;
-    if (itemtype_map_.begin() != itemtype_map_.end()) {
+    if (itemtypvar_map_.begin() != itemtypvar_map_.end()) {
     	os << "\t\t\tadd" << endl;
-    	for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
-             iter != itemtype_map_.end();
+    	for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+             iter != itemtypvar_map_.end();
              ++iter) {
             os << "\t\t\t(\"" << iter->first << "\", \"" << iter->first << "\")" << endl;
     	}
@@ -208,10 +208,10 @@ confgen::output_implementation_parser_constructor(ostream& os)
     os << "\t\t// set item type" << endl;
     os << "\t\tvector<vector<type_t> > tvv;" << endl
        << "\t\tvector<type_t> tv;" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
-         iter != itemtype_map_.end();
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+         iter != itemtypvar_map_.end();
          ++iter) {
-        os << "\t\ttimap[\"" << iter->first << "\"] = " << get_tsetstr(iter->second, 1) << ";" << endl;
+        os << "\t\ttimap[\"" << iter->first << "\"] = " << get_tsetstr(iter->second.first, 1) << ";" << endl;
     }
     // set default value
     os << "\t\t// set default value" << endl;
@@ -237,14 +237,14 @@ confgen::output_implementation_config_constructor(ostream& os)
     os << "{" << endl;
     os << "\tusing boost::make_tuple;" << endl
        << "\tvar_t v;" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
-         iter != itemtype_map_.end();
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+         iter != itemtypvar_map_.end();
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {
             // オプション項目
             os << "\tif (vm_.find(\"" << iter->first << "\")!=vm_.end()) {" << endl;
             os << "\t\tv = vm_[\"" << iter->first << "\"];" << endl;
-            os << "\t\t" << get_vsetstr(iter->second, iter->first+"_", "v", 3) << endl;
+            os << "\t\t" << get_vsetstr(iter->second.first, iter->first+"_", "v", 3) << endl;
             os << "\t\thas_" << iter->first << "_ = true;" << endl
                << "\t}" << endl
                << "\telse {" << endl
@@ -253,7 +253,7 @@ confgen::output_implementation_config_constructor(ostream& os)
         } else {
             // 必須項目
             os << "\tv = vm_[\"" << iter->first << "\"];" << endl;
-            os << "\t" << get_vsetstr(iter->second, iter->first+"_", "v", 2) << endl;
+            os << "\t" << get_vsetstr(iter->second.first, iter->first+"_", "v", 2) << endl;
         }
     }
 
@@ -284,8 +284,8 @@ confgen::output_implementation_config_dump(ostream& os)
     os << "// definition config dump" << endl;
     os << "void " << conf_name_ << "::dump(ostream& os) {" << endl;
     os << "\tos << \"[" << conf_name_ << "]\\n{\" << endl;" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtype_map_.begin();
-         iter != itemtype_map_.end();
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+         iter != itemtypvar_map_.end();
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {
             //
@@ -293,14 +293,14 @@ confgen::output_implementation_config_dump(ostream& os)
             // os << "option: xxx = NONE" << .... << ";" << endl;
             os << "\tif (has_" << iter->first << "_) {" << endl;
             os << "\t\tos << \"\\toptional: " << iter->first << " = \";" << endl;
-            os << get_dumpstr(iter->first, iter->second, 2);
+            os << get_dumpstr(iter->first, iter->second.first, 2);
             os << "\t\tos << \";\" << endl;" << endl;
             os << "\t} else {" << endl;
             os << "\t\tos << \"\\toptional: " << iter->first << " = NONE;\" << endl;" << endl;
             os << "\t}" << endl;
         } else {
             os << "\tos << \"\\trequired: " << iter->first << " = \";" << endl;
-            os << get_dumpstr(iter->first, iter->second, 1);
+            os << get_dumpstr(iter->first, iter->second.first, 1);
             os << "\tos << \";\" << endl;" << endl;
         }
     }

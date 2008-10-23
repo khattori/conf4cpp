@@ -22,10 +22,9 @@ class confgen
 public:
     confgen(confdef_g& g)
         : conf_name_(g.conf_name),
-          itemtype_map_(g.itemtype_map),
+          itemtypvar_map_(g.itemtypvar_map),
           itemreq_map_(g.itemreq_map),
-          enumelem_map_(g.enumelem_map),
-          defval_map_(g.defval_map) {}
+          enumelem_map_(g.enumelem_map) {}
 
     void output_interface(ostream& os);
     void output_implementation(ostream& os);
@@ -226,10 +225,9 @@ private:
     void output_implementation_config_dump(ostream& os);
 
     const string conf_name_;
-    const map<string, type_t> itemtype_map_;
+    const map<string, pair<type_t,var_t> > itemtypvar_map_;
     const map<string, bool> itemreq_map_;
     const map<string, vector<string> > enumelem_map_;
-    const map<string, var_t> defval_map_;
 };
 
 #endif /* CONFGEN_HPP */

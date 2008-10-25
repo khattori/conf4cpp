@@ -249,6 +249,7 @@ confgen::output_implementation_config_constructor(ostream& os)
                << "\t}" << endl
                << "\telse {" << endl
                << "\t\thas_" << iter->first << "_ = false;" << endl
+               << "\t\t" << iter->first << "_ = " << get_defvstr(iter->second.first, iter->second.second) << ";" << endl
                << "\t}" << endl;
         } else {
             // 必須項目
@@ -292,16 +293,18 @@ confgen::output_implementation_config_dump(ostream& os)
             // os << "option: xxx = " << .... << ";" << endl;
             // os << "option: xxx = NONE" << .... << ";" << endl;
             os << "\tif (has_" << iter->first << "_) {" << endl;
-            os << "\t\tos << \"\\toptional: " << iter->first << " = \";" << endl;
-            os << get_dumpstr(iter->first, iter->second.first, 2);
-            os << "\t\tos << \";\" << endl;" << endl;
+            os << "\t\tos << \"\\toptional: " << iter->first << " = \";" << endl
+               << get_dumpstr(iter->first, iter->second.first, 2)
+               << "\t\tos << \";\" << endl;" << endl;
             os << "\t} else {" << endl;
-            os << "\t\tos << \"\\toptional: " << iter->first << " = NONE;\" << endl;" << endl;
+            os << "\t\tos << \"\\toptional: " << iter->first << " = [DEFAULT]\";" << endl
+               << get_dumpstr(iter->first, iter->second.first, 2)
+               << "\t\tos << \";\" << endl;" << endl;
             os << "\t}" << endl;
         } else {
-            os << "\tos << \"\\trequired: " << iter->first << " = \";" << endl;
-            os << get_dumpstr(iter->first, iter->second.first, 1);
-            os << "\tos << \";\" << endl;" << endl;
+            os << "\tos << \"\\trequired: " << iter->first << " = \";" << endl
+               << get_dumpstr(iter->first, iter->second.first, 1)
+               << "\tos << \";\" << endl;" << endl;
         }
     }
     os << "\tos << \"}\" << endl;" << endl;

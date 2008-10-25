@@ -4,6 +4,7 @@ config test_conf {
 
 	required int_val	: int;
    	required bool_val	: bool;
+	required week_val	: week_t;
 	optional string_val	: string;
 	optional real_val	: real;
 	required string_list	: list<string>;
@@ -15,4 +16,18 @@ config test_conf {
 		 rib_tuple	: real,int,bool;
 		 string_tuple	: ((string));	
 		 week_fruits	: week_t,list<fruit_t>;
+	optional int_defval	: int(5);
+	optional int_defval2	: int;
+	optional bool_defval	: bool(true);
+	optional bool_defval2	: bool;
+	optional string_defval	: string("hello");
+	optional string_defval2 : string;
+	optional real_defval	: real(1.0123);
+	optional real_defval2	: real;
+	optional fruit_def	: fruit_t(Orange);
+#	optional fruit_baddef	: fruit_t(FRI);
+	optional fruit_def2	: fruit_t;
+
+	optional rib_tuple_def	: real(-3.14),int(5),bool;
+	optional stri_list_def	: list[3]<string("hoge"),int(1234)>;
 }

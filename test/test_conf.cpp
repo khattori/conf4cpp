@@ -34,6 +34,23 @@ int main(int argc, char* args[])
     assert(boost::get<1>(conf.week_fruits()).size()==4);
     assert(boost::get<1>(conf.week_fruits())[0]==test_conf::Apple);
 
+    assert(!conf.has_int_defval());
+    assert(!conf.has_int_defval2());
+    assert(conf.int_defval()==5);
+    assert(conf.int_defval2()==0);
+    assert(conf.bool_defval()==true);
+    assert(conf.bool_defval2()==false);
+    assert(conf.string_defval()=="hello");
+    assert(conf.string_defval2()=="");
+    assert(conf.real_defval()==1.0123);
+    assert(conf.real_defval2()==0.0);
+    assert(boost::get<0>(conf.rib_tuple_def())==-3.14);
+    assert(boost::get<1>(conf.rib_tuple_def())==5);
+    assert(boost::get<2>(conf.rib_tuple_def())==false);
+    assert(conf.stri_list_def().size()==3);
+    assert(boost::get<0>(conf.stri_list_def()[1])=="hoge");
+    assert(boost::get<1>(conf.stri_list_def()[2])==1234);
+
     conf.dump(cout);
 
     return 0;

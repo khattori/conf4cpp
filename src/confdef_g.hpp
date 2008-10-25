@@ -80,6 +80,54 @@ struct confdef_g : public grammar<confdef_g>
             sym.add(key.c_str(), make_pair(SYM_ENUM, ti_enum_t(key)));
         }
     };
+    struct add_elemsym
+    {
+        sym_s& sym;
+        string en;
+        add_elemsym(sym_s &sym_, const string& en_) : sym(sym_), en(en_) {}
+        template<typename IteratorT>
+        void operator() (const IteratorT& first, const IteratorT& last) const {
+            string key(first, last);
+            sym.add(key.c_str(), make_pair(SYM_ELEM, ti_enum_t(en)));
+        }
+    };
+    struct chk_defval
+    {
+	typedef void result_type;
+        const type_t &te;
+        const var_t &v;
+        chk_defval(const type_t& te_, const var_t& v_) : te(te_), v(v_) {}
+        template<typename IteratorT>
+        void operator() (const IteratorT& first, const IteratorT& last) const {
+            ti_atomic_t ta = boost::get<ti_atomic_t>(te);
+            switch (ta) {
+            case TI_DOUBLE: if (is_double(v)) return; break;
+            case TI_INT:    if (is_int(v)) return; break;
+            case TI_STRING: if (is_string(v)) return; break;
+            case TI_BOOL:   if (is_bool(v)) return; break;
+            }
+            throw_(first, string("type mismatch"));
+        }
+    };
+    struct chk_enumelem
+    {
+	typedef void result_type;
+        const map<string, vector<string> >& eem;
+        const type_t &te;
+        chk_enumelem(const map<string,vector<string> >&eem_, const type_t& te_) : eem(eem_), te(te_) {}
+
+        template<typename IteratorT>
+        void operator() (const IteratorT& first, const IteratorT& last) const {
+            string key(first, last);
+            if (!is_enum_type(te)) throw_(first, string("type mismatch"));
+            string eid = boost::get<ti_enum_t>(te).eid;
+            if (eem.find(eid) == eem.end()) throw_(first, string("type mismatch"));
+            for (unsigned int i = 0; i < eem.find(eid)->second.size(); i++) {
+                if (eem.find(eid)->second[i] == key) return;
+            }
+            throw_(first, string("type mismatch"));
+        }
+    };
     // (uint,pair<type_t,var_t>) -> pair<pair<int,type_t>,var_t>
     static pair<type_t,var_t> make_typvar(unsigned int l, const pair<type_t,var_t>& typvar) {
         return make_pair(make_pair(l,typvar.first),typvar.second);
@@ -187,18 +235,22 @@ struct confdef_g : public grammar<confdef_g>
 		= sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)
                               [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
-                    >> !( '(' >> value_r[atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),arg1)] >> ')' )
+                    >> !( '(' >> value_r[var(self.cur_val)=arg1][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),arg1)]
+                          >> eps_p[bind(chk_defval(self.cur_type.second,self.cur_val))(arg1,arg2)]
+                          >> ')' )
 		| sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_ENUM)
                               [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
-                    >> !( '(' >> value_r[atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),arg1)] >> ')' )
+                    >> !( '(' >> (sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM))
+                          [bind(chk_enumelem(self.enumelem_map,self.cur_type.second))(arg1,arg2)]
+                          [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),construct_<string>(arg1,arg2))]
+                          >> ')' )
 		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
             value_r
                 = strict_real_p[value_r.val=arg1]
                 | int_p[value_r.val=arg1]
                 | bool_r[value_r.val=arg1]
-                | string_r[value_r.val=arg1]
-                | (sym_p[var(self.cur_type)=arg1] >> eps_p(var(self.cur_type.first)==SYM_ELEM))[value_r.val=construct_<string>(arg1,arg2)];
+                | string_r[value_r.val=arg1];
             bool_r
                 = str_p("true") [bool_r.val = true]
                 | str_p("false")[bool_r.val = false];
@@ -220,7 +272,7 @@ struct confdef_g : public grammar<confdef_g>
             newenum_sym
                 = new_sym[add_enumsym(sym_p)][newenum_sym.val=construct_<string>(arg1,arg2)];
             newelem_sym
-                = new_sym[add_sym<SYM_ELEM>(sym_p)][newelem_sym.val=construct_<string>(arg1,arg2)];
+                = new_sym[add_elemsym(sym_p,self.cur_sym)][newelem_sym.val=construct_<string>(arg1,arg2)];
 	    elemseq_r
 		= newelem_sym[var(self.elem_list)=construct_<vector<string> >(1,arg1)]
                     >> *(',' >> newelem_sym[push_back_a(self.elem_list)])
@@ -231,7 +283,8 @@ struct confdef_g : public grammar<confdef_g>
     };
     mutable string cur_sym;
     mutable bool cur_req;
-    mutable pair<symtype_t,type_t> cur_type;
+    mutable pair<symtype_t,type_t> cur_type, cur_type2;
+    mutable var_t cur_val;
     mutable vector<string> elem_list;
     mutable map<string, pair<type_t,var_t> > itemtypvar_map;
     mutable map<string, vector<string> > enumelem_map;

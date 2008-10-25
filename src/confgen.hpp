@@ -147,6 +147,48 @@ private:
         unsigned int lv;
     };
     //
+    // format string for default value setting
+    //
+    struct defv_string : public boost::static_visitor<string>
+    {
+        defv_string(const var_t& dv_) : dv(dv_) {}
+
+        string operator() (ti_atomic_t ta) const {
+            switch (ta) {
+            case TI_BOOL:   return var2<bool>(dv) ? "true" : "false";
+            case TI_INT:    return boost::lexical_cast<string>(var2<int>(dv));
+            case TI_DOUBLE: return boost::lexical_cast<string>(var2<double>(dv));
+            case TI_STRING: return "\"" + var2<string>(dv) + "\"";
+            default: assert(false);
+            }
+        }
+        string operator() (ti_enum_t te) const {
+		if (is_int(dv)) {
+                    return te.eid + "(0)";
+                } 
+                return var2<string>(dv); 
+        }
+        string operator() (pair<unsigned int, type_t> tp) const {
+            if (tp.first == 0) {
+                return string("vector<") + apply_visitor(type_string(),tp.second) + " >()";
+            } else {
+                return string("vector<") + apply_visitor(type_string(),tp.second) + " >(" + boost::lexical_cast<string>(tp.first) + "," + apply_visitor(defv_string(dv),tp.second) + ")";
+            }
+        }
+        string operator() (vector<type_t> tv) const {
+            string ret("make_tuple(");
+            vector<var_t> vec = boost::get<vector<var_t> >(dv);
+            for (unsigned int i = 0; i < tv.size()-1; i++) {
+                ret += apply_visitor(defv_string(vec[i]), tv[i]) + ",";
+            }
+            ret += apply_visitor(defv_string(vec.back()), tv.back()) + ")";
+            return ret;
+        }
+        const var_t& dv;
+    };
+
+
+    //
     // format string for value dump 
     // 
     struct dump_string : public boost::static_visitor<string>
@@ -158,7 +200,7 @@ private:
             case TI_BOOL:   return indent(lv) + "os << (" + kw + " ? \"true\" : \"false\");\n";
             case TI_INT:    return indent(lv) + "os << " + kw + ";\n";
             case TI_DOUBLE: return indent(lv) + "os << " + kw + ";\n";
-            case TI_STRING: return indent(lv) + "os << " + kw + ";\n";
+            case TI_STRING: return indent(lv) + "os << \"\\\"\" << " + kw + " << \"\\\"\";\n";
             default: assert(false);
             }
             return "???";
@@ -205,6 +247,7 @@ private:
     string get_tsetstr(const type_t& ty, unsigned int lv) { return apply_visitor(tset_string(lv), ty); }
     string get_vsetstr(const type_t& ty, const string& lhs, const string& rhs, unsigned int lv)
         { return apply_visitor(vset_string(enumelem_map_,lhs,rhs,lv), ty); }
+    string get_defvstr(const type_t& ty, const var_t& dv) { return apply_visitor(defv_string(dv), ty); }
     string get_dumpstr(const string& kw, const type_t& ty, unsigned int lv) { return apply_visitor(dump_string(kw+"_", lv), ty); }
 
     static string indent(unsigned int lv) {

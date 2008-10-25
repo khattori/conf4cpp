@@ -1,0 +1,4 @@
+config type_mismatch_conf {
+	enum foo_t { FOO, BAR, BAZ }
+	foo : foo_t("hoge");
+}

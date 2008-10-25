@@ -1,0 +1,5 @@
+config type_mismatch_conf {
+	enum foo_t { FOO }
+	enum bar_t { BAR }
+	foo : foo_t(BAR);
+}

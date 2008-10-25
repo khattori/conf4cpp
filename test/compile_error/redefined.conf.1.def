@@ -1,0 +1,4 @@
+config redefined_conf {
+	foo : int;
+	foo : bool;
+}

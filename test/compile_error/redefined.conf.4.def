@@ -1,0 +1,3 @@
+config redefined_conf {
+	redefined_conf : int;
+}

@@ -1,0 +1,4 @@
+config redefined_conf {
+	enum foo_t { FOO }
+	enum foo_t { BAR }
+}

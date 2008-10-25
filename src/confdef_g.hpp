@@ -8,6 +8,8 @@
 
 #include <boost/spirit.hpp>
 #include <boost/spirit/actor.hpp>
+#include <boost/spirit/error_handling/exceptions.hpp>
+
 #include <conf4cpp.hpp>
 
 using namespace std;
@@ -46,15 +48,6 @@ struct confdef_g : public grammar<confdef_g>
 //                ("in_addr"  , make_pair(SYM_TYPENAME, 0))
 //                ("in6_addr" , make_pair(SYM_TYPENAME, 0))
                 ;
-        }
-    };
-    struct error
-    {
-        string msg;
-        error(const string& msg_) : msg(msg_) {}
-        template<typename IteratorT>
-        void operator() (const IteratorT& first, const IteratorT& last) const {
-            throw_(first, msg);
         }
     };
 
@@ -185,6 +178,13 @@ struct confdef_g : public grammar<confdef_g>
 	sym_s sym_p;
 
         definition(confdef_g const& self) {
+            assertion<string> expect_elem("no enum element");
+            assertion<string> rsvwd_redef("reserved word redefined");
+            assertion<string> typnm_redef("type name redefined");
+            assertion<string> symbol_redef("symbol redefined");
+            assertion<string> type_mismatch("type mismatch");
+            assertion<string> parse_failed("parser error");
+
             using phoenix::arg1;
 	    using phoenix::arg2;
 	    using phoenix::var;
@@ -209,9 +209,10 @@ struct confdef_g : public grammar<confdef_g>
                     >> !mandatory_r >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)] >> ':'
                     >> texp_r[insert_at_a(self.itemtypvar_map,self.cur_sym)] >> ';';
 	    enumdef_r
-		= lexeme_d[str_p("enum") >> blank_p]
-                                         >> newenum_sym[var(self.cur_sym)=arg1]
-                                         >> '{' >> elemseq_r[insert_at_a(self.enumelem_map,self.cur_sym)] >> '}';
+		= lexeme_d[str_p("enum") >> blank_p] 
+                                         >> (( newenum_sym[var(self.cur_sym)=arg1]
+                                              >> '{' >> expect_elem(elemseq_r[insert_at_a(self.enumelem_map,self.cur_sym)]) >> '}' )
+                                             | parse_failed(nothing_p));
 	    mandatory_r
 		= lexeme_d[str_p("required") >> blank_p] | lexeme_d[str_p("optional") >> blank_p][var(self.cur_req)=false];
             //
@@ -235,15 +236,19 @@ struct confdef_g : public grammar<confdef_g>
 		= sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)
                               [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
-                    >> !( '(' >> value_r[var(self.cur_val)=arg1][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),arg1)]
+                    >> !( '('
+                          >> ( value_r[var(self.cur_val)=arg1][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),arg1)] |
+                               ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) >> type_mismatch(nothing_p) ) )
                           >> eps_p[bind(chk_defval(self.cur_type.second,self.cur_val))(arg1,arg2)]
                           >> ')' )
 		| sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_ENUM)
                               [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
-                    >> !( '(' >> (sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM))
-                          [bind(chk_enumelem(self.enumelem_map,self.cur_type.second))(arg1,arg2)]
-                          [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),construct_<string>(arg1,arg2))]
+                    >> !( '('
+                          >> ( ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) )
+                                       [bind(chk_enumelem(self.enumelem_map,self.cur_type.second))(arg1,arg2)]
+                                       [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),construct_<string>(arg1,arg2))] |
+                               ( value_r >> type_mismatch(nothing_p) ) )
                           >> ')' )
 		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
             value_r
@@ -264,7 +269,10 @@ struct confdef_g : public grammar<confdef_g>
 	    id_r
 		= lexeme_d[ (alpha_p|'_') >> +(alnum_p|'_') ];
             new_sym
-                = (id_r - sym_p) | (sym_p >> eps_p)[error("symbol redefined")] >> nothing_p;
+                = (id_r - sym_p) | ( sym_p[var(self.cur_type)=arg1]
+                                     >> ( ( eps_p(var(self.cur_type.first)==SYM_RESERVED) >> rsvwd_redef(nothing_p) ) |
+                                          ( eps_p(var(self.cur_type.first)==SYM_TYPENAME) >> typnm_redef(nothing_p) ) |
+                                          symbol_redef(nothing_p) ) );
             newconf_sym
                 = new_sym[add_sym<SYM_CONFIG>(sym_p)][newconf_sym.val=construct_<string>(arg1,arg2)];
             newitem_sym

@@ -229,6 +229,9 @@ struct confdef_g : public grammar<confdef_g>
 	    postfix_texp_r
 		= list_type_r[postfix_texp_r.len=arg1]
                     >> '<' >> texp_r[postfix_texp_r.val=bind(&make_typvar)(postfix_texp_r.len,arg1)] >> '>'
+                    >> !( '('
+                          uint_p
+                          >> ')' )
 	        | atomic_texp_r[postfix_texp_r.val=arg1] >> !('[' >> constraints_r >> ']');
 	    list_type_r
 		= str_p("list")[list_type_r.val=0] >> !('[' >> uint_p[list_type_r.val=arg1] >> ']');

@@ -213,9 +213,6 @@ confgen::output_implementation_parser_constructor(ostream& os)
          ++iter) {
         os << "\t\ttimap[\"" << iter->first << "\"] = " << get_tsetstr(iter->second.first, 1) << ";" << endl;
     }
-    // set default value
-    os << "\t\t// set default value" << endl;
-
     os << "\t}" << endl;
 }
 

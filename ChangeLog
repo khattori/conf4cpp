@@ -1,3 +1,9 @@
+2008-10-26  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* ジェネレータのエラー処理の実装をリファクタ
+
+	* enum定義のパースエラー時にredefined symbolエラーというメッセージが表示されるバグを修正
+
 2008-10-18  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* デフォルト値を設定できるように定義ファイルの文法解析部分の処理を修正

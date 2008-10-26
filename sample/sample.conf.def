@@ -23,6 +23,6 @@ config sample_conf
 #	optional har : optional;
 	optional has : foo_t;
 	optional hashas : foo_t;
-	optional hoge : foo_t;
+	optional hoge : foo_t(BAR);
 }
 

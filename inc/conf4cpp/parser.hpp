@@ -103,6 +103,8 @@ namespace conf4cpp
                 atomic_value_r
                     = 
                     strict_real_p[atomic_value_r.val = arg1]
+                    | ((str_p("0x")|"0X") >> hex_p[atomic_value_r.val = arg1])
+                    | uint_p	[atomic_value_r.val = arg1]
                     | int_p	[atomic_value_r.val = arg1]
                     | bool_r	[atomic_value_r.val = arg1]
                     | string_r	[atomic_value_r.val = arg1]

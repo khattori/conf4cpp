@@ -19,7 +19,7 @@ using namespace boost::spirit;
 
 namespace conf4cpp
 {
-    enum ti_atomic_t { TI_BOOL, TI_INT, TI_DOUBLE, TI_STRING };
+    enum ti_atomic_t { TI_BOOL, TI_INT, TI_UINT, TI_DOUBLE, TI_STRING };
     struct ti_enum_t {
 	ti_enum_t(const string& eid_) : eid(eid_) {}
 	string eid;
@@ -47,7 +47,8 @@ namespace conf4cpp
 	error_t operator() (ti_atomic_t ta) const {
 	    switch (ta) {
 	    case TI_BOOL:   if (is_bool(v_))   return error_none; break;
-	    case TI_INT:    if (is_int(v_))    return error_none; break;
+	    case TI_INT:    if (is_int(v_)||(is_uint(v_) && boost::get<unsigned int>(v_) <= INT_MAX)) return error_none; break;
+	    case TI_UINT:   if (is_uint(v_))   return error_none; break;
 	    case TI_DOUBLE: if (is_double(v_)) return error_none; break;
 	    case TI_STRING: if (is_string(v_)) return error_none; break;
 	    default: assert(false);

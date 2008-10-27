@@ -18,6 +18,9 @@ config test_conf {
 		 week_fruits	: week_t,list<fruit_t>;
 	optional int_defval	: int(5);
 	optional int_defval2	: int;
+	optional uint_defval	: uint(123);
+	optional uint_defval2	: uint;
+	optional uint_defval3	: uint(0xffffffff);
 	optional bool_defval	: bool(true);
 	optional bool_defval2	: bool;
 	optional string_defval	: string("hello");

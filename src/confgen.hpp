@@ -41,6 +41,7 @@ private:
             switch (ta) {
             case TI_BOOL:   return "bool"; 
             case TI_INT:    return "int";
+            case TI_UINT:   return "unsigned int";
             case TI_DOUBLE: return "double";
             case TI_STRING: return "string";
             default: assert(false);
@@ -72,6 +73,7 @@ private:
             switch (ta) {
             case TI_BOOL:   return "TI_BOOL"; 
             case TI_INT:    return "TI_INT";
+            case TI_UINT:   return "TI_UINT";
             case TI_DOUBLE: return "TI_DOUBLE";
             case TI_STRING: return "TI_STRING";
             default: assert(false);
@@ -104,7 +106,8 @@ private:
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
             case TI_BOOL:   return lhs + " = var2<bool>(" + rhs + ");"; 
-            case TI_INT:    return lhs + " = var2<int>(" + rhs + ");";
+            case TI_INT:    return lhs + " = is_int(" + rhs + ") ? var2<int>(" + rhs + ") : var2<unsigned int>(" + rhs + ");";
+            case TI_UINT:   return lhs + " = var2<unsigned int>(" + rhs + ");";
             case TI_DOUBLE: return lhs + " = var2<double>(" + rhs + ");";
             case TI_STRING: return lhs + " = var2<string>(" + rhs + ");";
             default: assert(false);
@@ -156,7 +159,8 @@ private:
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
             case TI_BOOL:   return var2<bool>(dv) ? "true" : "false";
-            case TI_INT:    return boost::lexical_cast<string>(var2<int>(dv));
+            case TI_INT:    if (is_uint(dv)) return boost::lexical_cast<string>(var2<uint>(dv)); else return boost::lexical_cast<string>(var2<int>(dv));
+            case TI_UINT:   return boost::lexical_cast<string>(var2<unsigned int>(dv)) + "U";
             case TI_DOUBLE: return boost::lexical_cast<string>(var2<double>(dv));
             case TI_STRING: return "\"" + var2<string>(dv) + "\"";
             default: assert(false);
@@ -198,8 +202,9 @@ private:
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
             case TI_BOOL:   return indent(lv) + "os << (" + kw + " ? \"true\" : \"false\");\n";
-            case TI_INT:    return indent(lv) + "os << " + kw + ";\n";
-            case TI_DOUBLE: return indent(lv) + "os << " + kw + ";\n";
+            case TI_INT:
+	    case TI_UINT: 
+	    case TI_DOUBLE: return indent(lv) + "os << " + kw + ";\n";
             case TI_STRING: return indent(lv) + "os << \"\\\"\" << " + kw + " << \"\\\"\";\n";
             default: assert(false);
             }

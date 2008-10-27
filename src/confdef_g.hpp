@@ -40,6 +40,7 @@ struct confdef_g : public grammar<confdef_g>
                 ("bool"     , make_pair(SYM_TYPENAME, TI_BOOL))
                 ("real"     , make_pair(SYM_TYPENAME, TI_DOUBLE))
                 ("int"      , make_pair(SYM_TYPENAME, TI_INT))
+                ("uint"     , make_pair(SYM_TYPENAME, TI_UINT))
                 ("string"   , make_pair(SYM_TYPENAME, TI_STRING))
                 ("list"     , make_pair(SYM_TYPENAME, TI_BOOL))
 // not yet implemented ------------------------------------
@@ -95,7 +96,10 @@ struct confdef_g : public grammar<confdef_g>
             ti_atomic_t ta = boost::get<ti_atomic_t>(te);
             switch (ta) {
             case TI_DOUBLE: if (is_double(v)) return; break;
-            case TI_INT:    if (is_int(v)) return; break;
+            case TI_INT:
+                if (is_int(v)||(is_uint(v) && boost::get<unsigned int>(v) <= INT_MAX)) return;
+                break;
+            case TI_UINT:   if (is_uint(v)) return; break;
             case TI_STRING: if (is_string(v)) return; break;
             case TI_BOOL:   if (is_bool(v)) return; break;
             }
@@ -150,6 +154,7 @@ struct confdef_g : public grammar<confdef_g>
             switch (ta) {
             case TI_BOOL:   return bool(false);
             case TI_INT:    return int(0);
+            case TI_UINT:   return (unsigned int)(0);
             case TI_DOUBLE: return double(0.0);
             case TI_STRING: return string("");
             }
@@ -254,6 +259,8 @@ struct confdef_g : public grammar<confdef_g>
 		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
             value_r
                 = strict_real_p[value_r.val=arg1]
+                | ((str_p("0x")|"0X") >> hex_p[value_r.val=arg1])
+                | uint_p[value_r.val=arg1]
                 | int_p[value_r.val=arg1]
                 | bool_r[value_r.val=arg1]
                 | string_r[value_r.val=arg1];

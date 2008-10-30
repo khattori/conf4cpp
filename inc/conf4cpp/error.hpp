@@ -22,6 +22,8 @@ namespace conf4cpp
 	type_mismatch,
 	item_redefined,
 	item_undefined,
+        invalid_time,
+        invalid_addr,
     };
     class error : public exception
     {
@@ -46,6 +48,8 @@ namespace conf4cpp
                 "type mismatch",
                 "item redefined",
                 "item undefined",
+                "invalid time format",
+                "invalid address format",
             };
             return tbl[err];
         }

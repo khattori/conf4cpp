@@ -1,3 +1,7 @@
+2008-10-31  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* uint型を追加
+
 2008-10-26  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* ジェネレータのエラー処理の実装をリファクタ

@@ -6,6 +6,8 @@
 #ifndef CONFDEF_HPP
 #define CONFDEF_HPP
 
+#include <time.h>
+#include <netinet/in.h>
 #include <boost/spirit.hpp>
 #include <boost/spirit/actor.hpp>
 #include <boost/spirit/error_handling/exceptions.hpp>
@@ -42,12 +44,10 @@ struct confdef_g : public grammar<confdef_g>
                 ("int"      , make_pair(SYM_TYPENAME, TI_INT))
                 ("uint"     , make_pair(SYM_TYPENAME, TI_UINT))
                 ("string"   , make_pair(SYM_TYPENAME, TI_STRING))
+                ("time"     , make_pair(SYM_TYPENAME, TI_TIME))
+                ("ipv4addr" , make_pair(SYM_TYPENAME, TI_IPV4ADDR))
+                ("ipv6addr" , make_pair(SYM_TYPENAME, TI_IPV6ADDR))
                 ("list"     , make_pair(SYM_TYPENAME, TI_BOOL))
-// not yet implemented ------------------------------------
-//                ("date"     , make_pair(SYM_TYPENAME, 0))
-//                ("time"     , make_pair(SYM_TYPENAME, 0))
-//                ("in_addr"  , make_pair(SYM_TYPENAME, 0))
-//                ("in6_addr" , make_pair(SYM_TYPENAME, 0))
                 ;
         }
     };
@@ -95,13 +95,14 @@ struct confdef_g : public grammar<confdef_g>
         void operator() (const IteratorT& first, const IteratorT& last) const {
             ti_atomic_t ta = boost::get<ti_atomic_t>(te);
             switch (ta) {
-            case TI_DOUBLE: if (is_double(v)) return; break;
-            case TI_INT:
-                if (is_int(v)||(is_uint(v) && boost::get<unsigned int>(v) <= INT_MAX)) return;
-                break;
-            case TI_UINT:   if (is_uint(v)) return; break;
-            case TI_STRING: if (is_string(v)) return; break;
-            case TI_BOOL:   if (is_bool(v)) return; break;
+            case TI_DOUBLE:   if (is_double(v))   return; break;
+            case TI_INT:      if (is_int(v)||(is_uint(v) && boost::get<unsigned int>(v) <= INT_MAX)) return; break;
+            case TI_UINT:     if (is_uint(v))     return; break;
+            case TI_STRING:   if (is_string(v))   return; break;
+            case TI_BOOL:     if (is_bool(v))     return; break;
+            case TI_TIME:     if (is_time(v))     return; break;
+            case TI_IPV4ADDR: if (is_ipv4addr(v)) return; break;
+            case TI_IPV6ADDR: if (is_ipv6addr(v)) return; break;
             }
             throw_(first, string("type mismatch"));
         }
@@ -157,12 +158,31 @@ struct confdef_g : public grammar<confdef_g>
             case TI_UINT:   return (unsigned int)(0);
             case TI_DOUBLE: return double(0.0);
             case TI_STRING: return string("");
+            case TI_TIME:     { struct tm       ret = {0}; return ret; }
+            case TI_IPV4ADDR: { struct in_addr  ret = {0}; return ret; }
+            case TI_IPV6ADDR: { struct in6_addr ret = {0}; return ret; }
             }
         } else if (is_enum_type(ty)) {
             return 0;
         }
         assert(false);
         return false; // return dummy value
+    }
+
+    template<typename InAddrT, int af, typename IteratorT>
+    static InAddrT str2addr(const IteratorT& first, const IteratorT& last) {
+        string s(first, last);
+        InAddrT ret;
+        if (inet_pton(af, s.c_str(), &ret) != 1) throw_(first, string("invalid address format"));
+        return ret;
+    }
+    template<typename IteratorT>
+    static struct tm str2time(const char *fmt, const IteratorT& first, const IteratorT& last) {
+        string s(first, last);
+        struct tm ret;
+        char *p = strptime(s.c_str(), fmt, &ret);
+        if (p == NULL || *p != '\0') throw_(first, string("invalid time format"));
+        return ret;
     }
 
     template <typename ScannerT> struct definition
@@ -172,9 +192,10 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT,typvar_uint_val::context_t> postfix_texp_r ;
 	rule<ScannerT,typvars_val::context_t> compound_texp_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
-        rule<ScannerT,variant_val::context_t> value_r;
+        rule<ScannerT,variant_val::context_t> value_r, datetime_r;
 	rule<ScannerT> mandatory_r, constraints_r;
         rule<ScannerT> new_sym, id_r;
+        rule<ScannerT> date_r, time_r, ipv4addr_r, ipv6addr_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
         rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
         rule<ScannerT,string_val::context_t> string_r;
@@ -258,24 +279,39 @@ struct confdef_g : public grammar<confdef_g>
                           >> ')' )
 		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
             value_r
-                = strict_real_p[value_r.val=arg1]
-                | ((str_p("0x")|"0X") >> hex_p[value_r.val=arg1])
-                | uint_p[value_r.val=arg1]
-                | int_p[value_r.val=arg1]
-                | bool_r[value_r.val=arg1]
-                | string_r[value_r.val=arg1];
+                = lexeme_d[((str_p("0x")|"0X") >> hex_p[value_r.val=arg1])]
+                | datetime_r[value_r.val=arg1]
+                | ipv4addr_r[value_r.val=phoenix::bind(&str2addr<struct in_addr,  AF_INET,  typename ScannerT::iterator_t>)(arg1,arg2)]
+                | ipv6addr_r[value_r.val=phoenix::bind(&str2addr<struct in6_addr, AF_INET6, typename ScannerT::iterator_t>)(arg1,arg2)]
+                | strict_real_p[value_r.val=arg1]
+                | uint_p    [value_r.val=arg1]
+                | int_p     [value_r.val=arg1]
+                | bool_r    [value_r.val=arg1]
+                | string_r  [value_r.val=arg1];
             bool_r
-                = str_p("true") [bool_r.val = true]
-                | str_p("false")[bool_r.val = false];
+                = str_p("true") [bool_r.val=true]
+                | str_p("false")[bool_r.val=false];
             string_r
                 = confix_p('"', (*c_escape_ch_p)[string_r.val = construct_<string>(arg1,arg2)], '"');
+            datetime_r
+                = (date_r >> time_r)[datetime_r.val=phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d %T",arg1,arg2)]
+                | date_r[datetime_r.val=phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d",arg1,arg2)];
+            date_r
+                = lexeme_d[repeat_p(1,4)[digit_p] >> "/" >> repeat_p(1,2)[digit_p] >> "/" >> repeat_p(1,2)[digit_p]];
+            time_r
+                = lexeme_d[repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p]];
+            ipv4addr_r
+                = lexeme_d[repeat_p(3)[repeat_p(1,3)[digit_p] >> "."] >> repeat_p(1,3)[digit_p]];
+            ipv6addr_r
+                = lexeme_d[repeat_p(7)[repeat_p(1,4)[xdigit_p] >> ":"] >> repeat_p(1,4)[xdigit_p]]
+                | lexeme_d[(repeat_p(1,7)[repeat_p(1,4)[xdigit_p] >> ":"] | ":") >> (repeat_p(1,7)[":" >> repeat_p(1,4)[xdigit_p]] | ":")];
 
             // not yet implemented
 	    constraints_r
                 = eps_p;
 
 	    id_r
-		= lexeme_d[ (alpha_p|'_') >> +(alnum_p|'_') ];
+		= lexeme_d[(alpha_p|'_') >> +(alnum_p|'_')];
             new_sym
                 = (id_r - sym_p) | ( sym_p[var(self.cur_type)=arg1]
                                      >> ( ( eps_p(var(self.cur_type.first)==SYM_RESERVED) >> rsvwd_redef(nothing_p) ) |

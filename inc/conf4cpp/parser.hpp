@@ -85,7 +85,8 @@ namespace conf4cpp
         static struct tm str2time(const char *fmt, const IteratorT& first, const IteratorT& last) {
             string s(first, last);
             struct tm ret;
-            if (strptime(s.c_str(), fmt, &ret) == NULL) throw_(first, invalid_time);
+            char *p = strptime(s.c_str(), fmt, &ret);
+            if (p == NULL || *p != '\0') throw_(first, string("invalid time format"));
             return ret;
         }
 
@@ -120,16 +121,15 @@ namespace conf4cpp
                     = atomic_value_r[value_r.val = construct_<vector<var_t> >(1,arg1)]
                         >> *(',' >> atomic_value_r[value_r.val = phoenix::bind(&add_value)(value_r.val,arg1)]);
                 atomic_value_r
-                    = 
-                    strict_real_p[atomic_value_r.val = arg1]
-                    | lexeme_d[(str_p("0x")|"0X") >> hex_p[atomic_value_r.val = arg1]]
+                    = lexeme_d[(str_p("0x")|"0X") >> hex_p[atomic_value_r.val = arg1]]
+                    | datetime_r[atomic_value_r.val = arg1]
+                    | ipv4addr_r[atomic_value_r.val = phoenix::bind(&str2addr<struct in_addr,  AF_INET,  typename ScannerT::iterator_t>)(arg1,arg2)]
+                    | ipv6addr_r[atomic_value_r.val = phoenix::bind(&str2addr<struct in6_addr, AF_INET6, typename ScannerT::iterator_t>)(arg1,arg2)]
+                    | strict_real_p[atomic_value_r.val = arg1]
                     | uint_p	[atomic_value_r.val = arg1]
                     | int_p	[atomic_value_r.val = arg1]
                     | bool_r	[atomic_value_r.val = arg1]
                     | string_r	[atomic_value_r.val = arg1]
-                    | datetime_r[atomic_value_r.val = arg1]
-                    | ipv4addr_r[atomic_value_r.val = phoenix::bind(&str2addr<struct in_addr, AF_INET, typename ScannerT::iterator_t>)(arg1,arg2)]
-                    | ipv6addr_r[atomic_value_r.val = phoenix::bind(&str2addr<struct in6_addr, AF_INET6, typename ScannerT::iterator_t>)(arg1,arg2)]
                     | ch_p('{')[atomic_value_r.val = construct_<vector<var_t> >()]
                         >> !value_r[atomic_value_r.val = arg1] >> '}'
                     //	| '{' >> *item_r >> '}'
@@ -144,15 +144,14 @@ namespace conf4cpp
                     = (date_r >> time_r)[datetime_r.val = phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%M/%D %T",arg1,arg2)]
                     | date_r[datetime_r.val = phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%M/%D",arg1,arg2)];
                 date_r
-                    = lexeme_d[repeat_p(4)[digit_p] >> "/" >> repeat_p(2)[digit_p] >> "/" >> repeat_p(2)[digit_p]];
+                    = lexeme_d[repeat_p(1,4)[digit_p] >> "/" >> repeat_p(1,2)[digit_p] >> "/" >> repeat_p(1,2)[digit_p]];
                 time_r
-                    = lexeme_d[repeat_p(2)[digit_p] >> ":" >> repeat_p(2)[digit_p] >> ":" >> repeat_p(2)[digit_p]];
+                    = lexeme_d[repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p]];
                 ipv4addr_r
                     = lexeme_d[repeat_p(3)[repeat_p(1,3)[digit_p] >> "."] >> repeat_p(1,3)[digit_p]];
                 ipv6addr_r
                     = lexeme_d[repeat_p(7)[repeat_p(1,4)[xdigit_p] >> ":"] >> repeat_p(1,4)[xdigit_p]]
-                    | lexeme_d[repeat_p(0,6)[repeat_p(1,4)[xdigit_p] >> ":"] >> repeat_p(1,4)[xdigit_p] >> "::" >> 
-                               repeat_p(0,6)[repeat_p(1,4)[xdigit_p] >> ":"] >> repeat_p(1,4)[xdigit_p]];
+                    | lexeme_d[(repeat_p(1,7)[repeat_p(1,4)[xdigit_p] >> ":"] | ":") >> (repeat_p(1,7)[":" >> repeat_p(1,4)[xdigit_p]] | ":")];
             }
 
             rule<ScannerT> const& start() const { return config_r; }

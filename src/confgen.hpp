@@ -6,6 +6,9 @@
 #ifndef CONFGEN_HPP
 #define CONFGEN_HPP
 
+#include <time.h>
+#include <netinet/in.h>
+
 #include <ostream>
 #include <map>
 #include <string>
@@ -32,6 +35,7 @@ public:
     static void output_implementation_header(ostream& os, const string& incfile);
 
 private:
+
     //
     // format string for type variant
     // 
@@ -39,17 +43,19 @@ private:
     {
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
-            case TI_BOOL:   return "bool"; 
-            case TI_INT:    return "int";
-            case TI_UINT:   return "unsigned int";
-            case TI_DOUBLE: return "double";
-            case TI_STRING: return "string";
-            default: assert(false);
+            case TI_BOOL:     return "bool"; 
+            case TI_INT:      return "int";
+            case TI_UINT:     return "unsigned int";
+            case TI_DOUBLE:   return "double";
+            case TI_STRING:   return "string";
+            case TI_TIME:     return "struct tm";
+            case TI_IPV4ADDR: return "struct in_addr";
+            case TI_IPV6ADDR: return "struct in6_addr";
             }
+            assert(false);
+            return "???";
         }
-        string operator() (ti_enum_t te) const {
-            return te.eid;
-        }
+        string operator() (ti_enum_t te) const { return te.eid; }
         string operator() (pair<unsigned int, type_t> tp) const {
             return string("vector<") + apply_visitor(type_string(),tp.second) + " >";
         }
@@ -71,13 +77,17 @@ private:
 
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
-            case TI_BOOL:   return "TI_BOOL"; 
-            case TI_INT:    return "TI_INT";
-            case TI_UINT:   return "TI_UINT";
-            case TI_DOUBLE: return "TI_DOUBLE";
-            case TI_STRING: return "TI_STRING";
-            default: assert(false);
+            case TI_BOOL:     return "TI_BOOL"; 
+            case TI_INT:      return "TI_INT";
+            case TI_UINT:     return "TI_UINT";
+            case TI_DOUBLE:   return "TI_DOUBLE";
+            case TI_STRING:   return "TI_STRING";
+            case TI_TIME:     return "TI_TIME";
+            case TI_IPV4ADDR: return "TI_IPV4ADDR";
+            case TI_IPV6ADDR: return "TI_IPV6ADDR";
             }
+            assert(false);
+            return "???";
         }
         string operator() (ti_enum_t te) const {
             return string("ti_enum_t(\"") + boost::lexical_cast<string>(te.eid) + "\")";
@@ -105,13 +115,17 @@ private:
 
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
-            case TI_BOOL:   return lhs + " = var2<bool>(" + rhs + ");"; 
-            case TI_INT:    return lhs + " = is_int(" + rhs + ") ? var2<int>(" + rhs + ") : var2<unsigned int>(" + rhs + ");";
-            case TI_UINT:   return lhs + " = var2<unsigned int>(" + rhs + ");";
-            case TI_DOUBLE: return lhs + " = var2<double>(" + rhs + ");";
-            case TI_STRING: return lhs + " = var2<string>(" + rhs + ");";
-            default: assert(false);
+            case TI_BOOL:     return lhs + " = var2<bool>(" + rhs + ");"; 
+            case TI_INT:      return lhs + " = is_int(" + rhs + ") ? var2<int>(" + rhs + ") : var2<unsigned int>(" + rhs + ");";
+            case TI_UINT:     return lhs + " = var2<unsigned int>(" + rhs + ");";
+            case TI_DOUBLE:   return lhs + " = var2<double>(" + rhs + ");";
+            case TI_STRING:   return lhs + " = var2<string>(" + rhs + ");";
+            case TI_TIME:     return lhs + " = var2<struct tm>(" + rhs + ");";
+            case TI_IPV4ADDR: return lhs + " = var2<struct in_addr>(" + rhs + ");";
+            case TI_IPV6ADDR: return lhs + " = var2<struct in6_addr>(" + rhs + ");";
             }
+            assert(false);
+            return "???";
         }
         string operator() (ti_enum_t te) const {
             if (eem.find(te.eid) == eem.end()) {
@@ -149,6 +163,7 @@ private:
         const string& rhs;
         unsigned int lv;
     };
+
     //
     // format string for default value setting
     //
@@ -158,13 +173,32 @@ private:
 
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
-            case TI_BOOL:   return var2<bool>(dv) ? "true" : "false";
-            case TI_INT:    if (is_uint(dv)) return boost::lexical_cast<string>(var2<uint>(dv)); else return boost::lexical_cast<string>(var2<int>(dv));
-            case TI_UINT:   return boost::lexical_cast<string>(var2<unsigned int>(dv)) + "U";
-            case TI_DOUBLE: return boost::lexical_cast<string>(var2<double>(dv));
-            case TI_STRING: return "\"" + var2<string>(dv) + "\"";
-            default: assert(false);
+            case TI_BOOL:     return var2<bool>(dv) ? "true" : "false";
+            case TI_INT:      if (is_uint(dv)) return boost::lexical_cast<string>(var2<uint>(dv)); else return boost::lexical_cast<string>(var2<int>(dv));
+            case TI_UINT:     return boost::lexical_cast<string>(var2<unsigned int>(dv)) + "U";
+            case TI_DOUBLE:   return boost::lexical_cast<string>(var2<double>(dv));
+            case TI_STRING:   return "\"" + var2<string>(dv) + "\"";
+            case TI_TIME: {
+                struct tm t = var2<struct tm>(dv);
+                string ret("*localtime((t_=");
+                ret += boost::lexical_cast<string>(mktime(&t)) + ",&t_))";
+                return ret;
             }
+            case TI_IPV4ADDR: return "to_in_addr("+ boost::lexical_cast<string>(var2<struct in_addr>(dv).s_addr) + ")";
+            case TI_IPV6ADDR: {
+                struct in6_addr addr = var2<struct in6_addr>(dv);
+                unsigned int i;
+                string ret("to_in6_addr(");
+                for (i = 0; i < sizeof(addr.s6_addr)-1; i++) {
+                    ret += boost::lexical_cast<string>(int(addr.s6_addr[i])) + ",";
+                }
+                ret += boost::lexical_cast<string>(int(addr.s6_addr[i])) + ")";
+
+                return ret;
+            }
+            }
+            assert(false);
+            return "???";
         }
         string operator() (ti_enum_t te) const {
 		if (is_int(dv)) {
@@ -191,7 +225,6 @@ private:
         const var_t& dv;
     };
 
-
     //
     // format string for value dump 
     // 
@@ -201,12 +234,14 @@ private:
 
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
-            case TI_BOOL:   return indent(lv) + "os << (" + kw + " ? \"true\" : \"false\");\n";
+            case TI_BOOL:     return indent(lv) + "os << (" + kw + " ? \"true\" : \"false\");\n";
             case TI_INT:
 	    case TI_UINT: 
-	    case TI_DOUBLE: return indent(lv) + "os << " + kw + ";\n";
-            case TI_STRING: return indent(lv) + "os << \"\\\"\" << " + kw + " << \"\\\"\";\n";
-            default: assert(false);
+	    case TI_DOUBLE:   return indent(lv) + "os << " + kw + ";\n";
+            case TI_STRING:   return indent(lv) + "os << \"\\\"\" << " + kw + " << \"\\\"\";\n";
+            case TI_TIME:     return indent(lv) + "os << " + "asctime(&" + kw + ");\n";
+            case TI_IPV4ADDR: return indent(lv) + "os << " + "inet_ntop(AF_INET, &" + kw + ", buf, INET_ADDRSTRLEN);\n";
+            case TI_IPV6ADDR: return indent(lv) + "os << " + "inet_ntop(AF_INET6, &" + kw + ", buf, INET6_ADDRSTRLEN);\n";
             }
             return "???";
         }

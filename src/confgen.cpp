@@ -20,6 +20,9 @@ confgen::output_implementation_header(ostream& os, const string& incfile)
 {
     os << "// conf4cpp : implementation file" << endl;
     output_file_header(os);
+    os << "#include <time.h>" << endl
+       << "#include <netinet/in.h>" << endl
+       << "#include <arpa/inet.h>" << endl;
     os << "#include \"" << incfile << "\"" << endl
        << "using namespace conf4cpp;" << endl;
 }
@@ -233,15 +236,16 @@ confgen::output_implementation_config_constructor(ostream& os)
     os << conf_name_ << "::" << conf_name_ << "(const string& fname) : base_config<" << conf_name_ << "_parser>(fname)" << endl;
     os << "{" << endl;
     os << "\tusing boost::make_tuple;" << endl
-       << "\tvar_t v;" << endl;
+       << "\tvar_t v_;" << endl
+       << "\ttime_t t_;" << endl;
     for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
          iter != itemtypvar_map_.end();
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {
             // オプション項目
             os << "\tif (vm_.find(\"" << iter->first << "\")!=vm_.end()) {" << endl;
-            os << "\t\tv = vm_[\"" << iter->first << "\"];" << endl;
-            os << "\t\t" << get_vsetstr(iter->second.first, iter->first+"_", "v", 3) << endl;
+            os << "\t\tv_ = vm_[\"" << iter->first << "\"];" << endl;
+            os << "\t\t" << get_vsetstr(iter->second.first, iter->first+"_", "v_", 3) << endl;
             os << "\t\thas_" << iter->first << "_ = true;" << endl
                << "\t}" << endl
                << "\telse {" << endl
@@ -250,8 +254,8 @@ confgen::output_implementation_config_constructor(ostream& os)
                << "\t}" << endl;
         } else {
             // 必須項目
-            os << "\tv = vm_[\"" << iter->first << "\"];" << endl;
-            os << "\t" << get_vsetstr(iter->second.first, iter->first+"_", "v", 2) << endl;
+            os << "\tv_ = vm_[\"" << iter->first << "\"];" << endl;
+            os << "\t" << get_vsetstr(iter->second.first, iter->first+"_", "v_", 2) << endl;
         }
     }
 
@@ -281,6 +285,7 @@ confgen::output_implementation_config_dump(ostream& os)
 {
     os << "// definition config dump" << endl;
     os << "void " << conf_name_ << "::dump(ostream& os) {" << endl;
+    os << "\tchar buf[BUFSIZ];" << endl;
     os << "\tos << \"[" << conf_name_ << "]\\n{\" << endl;" << endl;
     for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
          iter != itemtypvar_map_.end();

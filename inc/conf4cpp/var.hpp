@@ -55,6 +55,15 @@ namespace conf4cpp
     inline bool is_vector   (const var_t& v) { return v.which() == IS_VECTOR;   }
 
     template<typename T> const T& var2(const var_t &v) { return boost::get<T>(v); }
+
+    inline struct in_addr to_in_addr(in_addr_t n) { struct in_addr addr = {n}; return addr; }
+    inline struct in6_addr to_in6_addr(uint8_t n1, uint8_t n2, uint8_t n3, uint8_t n4,
+                                      uint8_t n5, uint8_t n6, uint8_t n7, uint8_t n8,
+                                      uint8_t n9, uint8_t n10,uint8_t n11,uint8_t n12,
+	                              uint8_t n13,uint8_t n14,uint8_t n15,uint8_t n16) {
+	struct in6_addr addr = {{{n1,n2,n3,n4,n5,n6,n7,n8,n9,n10,n11,n12,n13,n14,n15,n16}}};
+	return addr;
+    }
 }
 
 #endif /* VAR_HPP */

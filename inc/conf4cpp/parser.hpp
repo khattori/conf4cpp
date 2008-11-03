@@ -84,9 +84,9 @@ namespace conf4cpp
         template<typename IteratorT>
         static struct tm str2time(const char *fmt, const IteratorT& first, const IteratorT& last) {
             string s(first, last);
-            struct tm ret;
+            struct tm ret = {0};
             char *p = strptime(s.c_str(), fmt, &ret);
-            if (p == NULL || *p != '\0') throw_(first, string("invalid time format"));
+            if (p == NULL || *p != '\0') throw_(first, invalid_time);
             return ret;
         }
 
@@ -141,8 +141,8 @@ namespace conf4cpp
                 string_r
                     = confix_p('"', (*c_escape_ch_p)[string_r.val = construct_<string>(arg1,arg2)], '"');
                 datetime_r
-                    = (date_r >> time_r)[datetime_r.val = phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%M/%D %T",arg1,arg2)]
-                    | date_r[datetime_r.val = phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%M/%D",arg1,arg2)];
+                    = (date_r >> time_r)[datetime_r.val = phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d %T",arg1,arg2)]
+                    | date_r[datetime_r.val = phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d",arg1,arg2)];
                 date_r
                     = lexeme_d[repeat_p(1,4)[digit_p] >> "/" >> repeat_p(1,2)[digit_p] >> "/" >> repeat_p(1,2)[digit_p]];
                 time_r

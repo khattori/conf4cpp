@@ -158,7 +158,7 @@ struct confdef_g : public grammar<confdef_g>
             case TI_UINT:   return (unsigned int)(0);
             case TI_DOUBLE: return double(0.0);
             case TI_STRING: return string("");
-            case TI_TIME:     { struct tm       ret = {0}; return ret; }
+            case TI_TIME:     { time_t t = 0; struct tm ret = *localtime(&t); return ret; }
             case TI_IPV4ADDR: { struct in_addr  ret = {0}; return ret; }
             case TI_IPV6ADDR: { struct in6_addr ret = {0}; return ret; }
             }
@@ -179,7 +179,7 @@ struct confdef_g : public grammar<confdef_g>
     template<typename IteratorT>
     static struct tm str2time(const char *fmt, const IteratorT& first, const IteratorT& last) {
         string s(first, last);
-        struct tm ret;
+        struct tm ret = {0};
         char *p = strptime(s.c_str(), fmt, &ret);
         if (p == NULL || *p != '\0') throw_(first, string("invalid time format"));
         return ret;

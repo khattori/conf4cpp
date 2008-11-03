@@ -239,7 +239,7 @@ private:
 	    case TI_UINT: 
 	    case TI_DOUBLE:   return indent(lv) + "os << " + kw + ";\n";
             case TI_STRING:   return indent(lv) + "os << \"\\\"\" << " + kw + " << \"\\\"\";\n";
-            case TI_TIME:     return indent(lv) + "os << " + "asctime(&" + kw + ");\n";
+            case TI_TIME:     return indent(lv) + "os << " + "(strftime(buf,sizeof(buf),\"\%Y/\%m/\%d \%T\",&" + kw + "),buf);\n";
             case TI_IPV4ADDR: return indent(lv) + "os << " + "inet_ntop(AF_INET, &" + kw + ", buf, INET_ADDRSTRLEN);\n";
             case TI_IPV6ADDR: return indent(lv) + "os << " + "inet_ntop(AF_INET6, &" + kw + ", buf, INET6_ADDRSTRLEN);\n";
             }

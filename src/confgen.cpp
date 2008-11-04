@@ -236,8 +236,8 @@ confgen::output_implementation_config_constructor(ostream& os)
     os << conf_name_ << "::" << conf_name_ << "(const string& fname) : base_config<" << conf_name_ << "_parser>(fname)" << endl;
     os << "{" << endl;
     os << "\tusing boost::make_tuple;" << endl
-       << "\tvar_t v_;" << endl
-       << "\ttime_t t_;" << endl;
+       << "\tvar_t v_ __attribute__((unused));" << endl
+       << "\ttime_t t_ __attribute__((unused));" << endl;
     for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
          iter != itemtypvar_map_.end();
          ++iter) {
@@ -285,7 +285,7 @@ confgen::output_implementation_config_dump(ostream& os)
 {
     os << "// definition config dump" << endl;
     os << "void " << conf_name_ << "::dump(ostream& os) {" << endl;
-    os << "\tchar buf[BUFSIZ];" << endl;
+    os << "\tchar buf[BUFSIZ] __attribute__((unused));" << endl;
     os << "\tos << \"[" << conf_name_ << "]\\n{\" << endl;" << endl;
     for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
          iter != itemtypvar_map_.end();

@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 
-#include <conf4cpp/version.hpp>
+#include <conf4cpp.hpp>
 #include "confdef_g.hpp"
 #include "confgen.hpp"
 

@@ -160,7 +160,7 @@ struct confdef_g : public grammar<confdef_g>
             case TI_STRING: return string("");
             case TI_TIME:     { time_t t = 0; struct tm ret = *localtime(&t); return ret; }
             case TI_IPV4ADDR: { struct in_addr  ret = {0}; return ret; }
-            case TI_IPV6ADDR: { struct in6_addr ret = {0}; return ret; }
+            case TI_IPV6ADDR: { struct in6_addr ret = {{{0}}}; return ret; }
             }
         } else if (is_enum_type(ty)) {
             return 0;

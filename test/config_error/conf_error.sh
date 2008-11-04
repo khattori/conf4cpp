@@ -1,12 +1,12 @@
 #!/bin/sh
 
-CONF4CPP=../../src/conf4cpp
+CONFERR=./conf_error
 
 pass=0
 total=0
-for fname in *.def
+for fname in *.conf
 do
-	$CONF4CPP $fname
+	echo -n "$fname: " ; $CONFERR $fname
 	if test $? -ne 255 
 	then
 		echo "failed test case: $fname"

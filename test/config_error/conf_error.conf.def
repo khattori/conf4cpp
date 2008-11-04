@@ -1,0 +1,22 @@
+config conf_error {
+	enum week_t { MON, TUE, WED, THU, FRI, SAT, SUN }
+	enum fruit_t { Apple, Banana, Orange, Peach, Lemon }
+
+	required req_int_val	: int;
+	optional uint_val	: uint;
+   	optional bool_val	: bool;
+	optional string_val	: string;
+	optional real_val	: real;
+	optional week_val	: week_t;
+	optional fruit_val	: fruit_t;
+	optional date_val	: time;
+	optional ipv4_val	: ipv4addr;
+	optional ipv6_val	: ipv6addr;
+
+	optional ipv4net_val	: ipv4addr,uint;
+	optional strlist_val	: list<string>;
+	optional strlist3_val	: list[3]<string>;
+	optional intbools_val	: list<int,bool>;
+	optional fruitsreal_val : list<fruit_t>,real;
+	optional weekbi_val	: (week_t,bool),int;
+}

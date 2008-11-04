@@ -1,3 +1,12 @@
+2008-11-04  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* conf4cpp-0.0.3 リリース
+
+	* BOOST_SPIRIT_FILEITERATOR_STDを定義し，std_file_iteratorを使用す
+	るようにした
+
+	* time型，ipv4addr型, ipv6addr型を追加
+
 2008-10-31  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* uint型を追加
@@ -6,9 +15,11 @@
 
 	* ジェネレータのエラー処理の実装をリファクタ
 
-	* enum定義のパースエラー時にredefined symbolエラーというメッセージが表示されるバグを修正
+	* enum定義のパースエラー時にredefined symbolエラーというメッセージ
+	が表示されるバグを修正
 
 2008-10-18  Kenta HATTORI  <hattori@bach.tatta.org>
 
-	* デフォルト値を設定できるように定義ファイルの文法解析部分の処理を修正
+	* デフォルト値を設定できるように定義ファイルの文法解析部分の処理を
+	修正
 

@@ -39,6 +39,8 @@ struct confdef_g : public grammar<confdef_g>
                 ("config"   , make_pair(SYM_RESERVED, TI_BOOL))
                 ("required" , make_pair(SYM_RESERVED, TI_BOOL))
                 ("optional" , make_pair(SYM_RESERVED, TI_BOOL))
+                ("const"    , make_pair(SYM_RESERVED, TI_BOOL))
+                ("mutable"  , make_pair(SYM_RESERVED, TI_BOOL))
                 ("bool"     , make_pair(SYM_TYPENAME, TI_BOOL))
                 ("real"     , make_pair(SYM_TYPENAME, TI_DOUBLE))
                 ("int"      , make_pair(SYM_TYPENAME, TI_INT))
@@ -193,7 +195,7 @@ struct confdef_g : public grammar<confdef_g>
 	rule<ScannerT,typvars_val::context_t> compound_texp_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
         rule<ScannerT,variant_val::context_t> value_r, datetime_r;
-	rule<ScannerT> mandatory_r, constraints_r;
+	rule<ScannerT> mandatory_r, constraints_r, qualifier_r;
         rule<ScannerT> new_sym, id_r;
         rule<ScannerT> date_r, time_r, ipv4addr_r, ipv6addr_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
@@ -221,7 +223,7 @@ struct confdef_g : public grammar<confdef_g>
             //
             // <config>    ::= config { <spec>* }
             // <spec>      ::= <enumdef> | <itemdef>
-            // <itemdef>   ::= <mandatory>? <id> : <compound_type> ;
+            // <itemdef>   ::= <mandatory>? <id> <qualifire>? : <compound_type> ;
             // <enumdef>   ::= enum <id> { <id> (, <id>)* }
             // <mandatory> ::= required | optional
             //
@@ -231,8 +233,10 @@ struct confdef_g : public grammar<confdef_g>
 		= (enumdef_r | itemdef_r);
 
             itemdef_r
-		= eps_p[var(self.cur_req)=true]
-                    >> !mandatory_r >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)] >> ':'
+		= eps_p[var(self.cur_req)=true][var(self.cur_con)=true]
+                    >> ((!mandatory_r >> !qualifier_r) | (!qualifier_r >> !mandatory_r))
+                    >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)][insert_key_a(self.itemcon_map,self.cur_con)]
+                    >> ':'
                     >> texp_r[insert_at_a(self.itemtypvar_map,self.cur_sym)] >> ';';
 	    enumdef_r
 		= lexeme_d[str_p("enum") >> blank_p] 
@@ -241,6 +245,8 @@ struct confdef_g : public grammar<confdef_g>
                                              | parse_failed(nothing_p));
 	    mandatory_r
 		= lexeme_d[str_p("required") >> blank_p] | lexeme_d[str_p("optional") >> blank_p][var(self.cur_req)=false];
+            qualifier_r
+                = lexeme_d[str_p("const") >> blank_p] | lexeme_d[str_p("mutable") >> blank_p][var(self.cur_con)=false];
             //
             // <compound_type> ::= <postfix_type> (, <postfix_type>)*
             // <postfix_type>  ::= list ([ <uint> ])? < <compound_type> >
@@ -334,13 +340,13 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT> const& start() const { return config_r; }
     };
     mutable string cur_sym;
-    mutable bool cur_req;
+    mutable bool cur_req, cur_con;
     mutable pair<symtype_t,type_t> cur_type, cur_type2;
     mutable var_t cur_val;
     mutable vector<string> elem_list;
     mutable map<string, pair<type_t,var_t> > itemtypvar_map;
     mutable map<string, vector<string> > enumelem_map;
-    mutable map<string, bool> itemreq_map;
+    mutable map<string, bool> itemreq_map, itemcon_map;
     mutable string conf_name;
 };
 

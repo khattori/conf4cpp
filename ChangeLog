@@ -1,3 +1,7 @@
+2008-11-05  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* mutable, constキーワードの追加と，set_メンバー関数出力部の追加
+
 2008-11-04  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* conf4cpp-0.0.3 リリース

@@ -27,6 +27,7 @@ public:
         : conf_name_(g.conf_name),
           itemtypvar_map_(g.itemtypvar_map),
           itemreq_map_(g.itemreq_map),
+          itemcon_map_(g.itemcon_map),
           enumelem_map_(g.enumelem_map) {}
 
     void output_interface(ostream& os);
@@ -309,7 +310,7 @@ private:
 
     const string conf_name_;
     const map<string, pair<type_t,var_t> > itemtypvar_map_;
-    const map<string, bool> itemreq_map_;
+    const map<string, bool> itemreq_map_, itemcon_map_;
     const map<string, vector<string> > enumelem_map_;
 };
 

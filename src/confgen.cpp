@@ -109,6 +109,7 @@ confgen::output_interface_accessors(ostream& os)
          ++iter) {
         os << "\tconst " << get_typestr(iter->second.first) << "& " << iter->first << "() const { return " << iter->first << "_; }" << endl;
         if (!itemreq_map_.find(iter->first)->second) os << "\tbool has_" << iter->first << "() const { return has_" << iter->first << "_; }" << endl;
+        if (!itemcon_map_.find(iter->first)->second) os << "\tvoid set_" << iter->first << "(const " << get_typestr(iter->second.first) << "& v) { " << iter->first << "_ = v; }" << endl;
     }
 }
 

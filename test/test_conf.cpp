@@ -34,7 +34,9 @@ int main(int argc, char* args[])
     }
 
     test_conf conf(args[1]);
-
+    assert(conf.int_val()==-123);
+    assert(conf.bool_val()==false);
+    assert(conf.week_val()==test_conf::SUN);
     assert(!conf.has_string_val());
     assert(conf.has_real_val());
     assert(conf.real_val()==-32134.5643);
@@ -119,7 +121,12 @@ int main(int argc, char* args[])
     assert(ipv6_equal(ipv6,conf.ipv6_value6()));
     inet_pton(AF_INET6, "1:2:3:4:5:6:7:8", &ipv6);
     assert(ipv6_equal(ipv6,conf.ipv6_value7()));
-
+    // test set method
+    conf.set_int_val(321);
+    assert(conf.int_val()==321);
+    assert(conf.string_val()=="");
+    conf.set_string_val("hoge");
+    assert(conf.string_val()=="hoge");
     conf.dump(cout);
 
     return 0;

@@ -74,21 +74,6 @@ namespace conf4cpp
         base_config_parser(value_map_t& vm) : vmap(vm) {}
         static var_t add_value(var_t& v1, const var_t& v2) { vector<var_t> v = var2<vector<var_t> >(v1); v.push_back(v2); return v; }
 
-        template<typename InAddrT, int af, typename IteratorT>
-        static InAddrT str2addr(const IteratorT& first, const IteratorT& last) {
-            string s(first, last);
-            InAddrT ret;
-            if (inet_pton(af, s.c_str(), &ret) != 1) throw_(first, invalid_addr);
-            return ret;
-        }
-        template<typename IteratorT>
-        static struct tm str2time(const char *fmt, const IteratorT& first, const IteratorT& last) {
-            string s(first, last);
-            struct tm ret = {0};
-            char *p = strptime(s.c_str(), fmt, &ret);
-            if (p == NULL || *p != '\0') throw_(first, invalid_time);
-            return ret;
-        }
 
         vector<string> reqs;
         tyinfo_map_t timap;
@@ -97,10 +82,13 @@ namespace conf4cpp
         template <typename ScannerT> struct definition
         {
             rule<ScannerT> config_r;
-            rule<ScannerT, variant_val::context_t> value_r, atomic_value_r, bool_r, datetime_r;
+            rule<ScannerT, variant_val::context_t> value_r, atomic_value_r, bool_r;
             rule<ScannerT, string_val::context_t> string_r;
             rule<ScannerT, item_val::context_t> item_r;
-            rule<ScannerT> date_r, time_r, ipv4addr_r, ipv6addr_r;
+            rule<ScannerT> date_r, time_r;
+            datetime_parser datetime_r;
+            ipv6addr_parser ipv6addr_r;
+            ipv4addr_parser ipv4addr_r;
 
             typename derived_T::keywords keywords_p;
             typename derived_T::constvals constvals_p;
@@ -109,6 +97,7 @@ namespace conf4cpp
                 using phoenix::arg1;
                 using phoenix::arg2;
                 using phoenix::construct_;
+                using phoenix::var;
                 config_r
                     = *item_r >> end_p;
                 item_r
@@ -122,9 +111,9 @@ namespace conf4cpp
                         >> *(',' >> atomic_value_r[value_r.val = phoenix::bind(&add_value)(value_r.val,arg1)]);
                 atomic_value_r
                     = lexeme_d[(str_p("0x")|"0X") >> hex_p[atomic_value_r.val = arg1]]
-                    | datetime_r[atomic_value_r.val = arg1]
-                    | ipv4addr_r[atomic_value_r.val = phoenix::bind(&str2addr<struct in_addr,  AF_INET,  typename ScannerT::iterator_t>)(arg1,arg2)]
-                    | ipv6addr_r[atomic_value_r.val = phoenix::bind(&str2addr<struct in6_addr, AF_INET6, typename ScannerT::iterator_t>)(arg1,arg2)]
+                    | datetime_r[atomic_value_r.val = var(datetime_r.val)]
+                    | ipv4addr_r[atomic_value_r.val = var(ipv4addr_r.val)]
+                    | ipv6addr_r[atomic_value_r.val = var(ipv6addr_r.val)]
                     | strict_real_p[atomic_value_r.val = arg1]
                     | uint_p	[atomic_value_r.val = arg1]
                     | int_p	[atomic_value_r.val = arg1]
@@ -147,11 +136,6 @@ namespace conf4cpp
                     = lexeme_d[repeat_p(1,4)[digit_p] >> "/" >> repeat_p(1,2)[digit_p] >> "/" >> repeat_p(1,2)[digit_p]];
                 time_r
                     = lexeme_d[repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p]];
-                ipv4addr_r
-                    = lexeme_d[repeat_p(3)[repeat_p(1,3)[digit_p] >> "."] >> repeat_p(1,3)[digit_p]];
-                ipv6addr_r
-                    = lexeme_d[repeat_p(7)[repeat_p(1,4)[xdigit_p] >> ":"] >> repeat_p(1,4)[xdigit_p]]
-                    | lexeme_d[(repeat_p(1,7)[repeat_p(1,4)[xdigit_p] >> ":"] | ":") >> (repeat_p(1,7)[":" >> repeat_p(1,4)[xdigit_p]] | ":")];
             }
 
             rule<ScannerT> const& start() const { return config_r; }

@@ -8,10 +8,14 @@
 
 #include <time.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <string>
 #include <vector>
 #include <map>
 #include <boost/variant.hpp>
+#include <boost/spirit.hpp>
+#include <boost/spirit/phoenix.hpp>
+#include <conf4cpp/error.hpp>
 
 using namespace std;
 
@@ -64,6 +68,68 @@ namespace conf4cpp
 	struct in6_addr addr = {{{n1,n2,n3,n4,n5,n6,n7,n8,n9,n10,n11,n12,n13,n14,n15,n16}}};
 	return addr;
     }
+
+    using namespace boost::spirit;
+    using phoenix::arg1;
+    using phoenix::arg2;
+    using phoenix::bind;
+    using phoenix::var;
+
+    //
+    // IPアドレスパーサ定義
+    //
+    template<typename IteratorT>
+    inline struct tm str2time(const char *fmt, const IteratorT& first, const IteratorT& last) {
+        string s(first, last);
+        struct tm ret = {0};
+        char *p = strptime(s.c_str(), fmt, &ret);
+        if (p == NULL || *p != '\0') throw_(first, invalid_time);
+        return ret;
+    }
+
+    //
+    // IPアドレスパーサ定義
+    //
+    template<typename InAddrT, int af, typename IteratorT>
+    inline InAddrT str2addr(const IteratorT& first, const IteratorT& last) {
+        string s(first, last);
+        InAddrT ret;
+        if (inet_pton(af, s.c_str(), &ret) != 1) throw_(first, invalid_addr);
+        return ret;
+    }
+
+    struct ipv4addr_parser : public grammar<ipv4addr_parser>
+    {
+        template <typename ScannerT>
+        struct definition
+        {
+            typedef rule<ScannerT> rule_t;
+            rule_t top;
+            definition(ipv4addr_parser const& self) {
+                top = lexeme_d[(repeat_p(3)[repeat_p(1,3)[digit_p] >> "."] >> repeat_p(1,3)[digit_p])]
+                    [var(self.val)=bind(&str2addr<struct in_addr, AF_INET, typename ScannerT::iterator_t>)(arg1,arg2)];
+            }
+            rule_t const& start() const { return top; }
+        };
+        mutable struct in_addr val;
+    };
+
+    struct ipv6addr_parser : public grammar<ipv6addr_parser>
+    {
+        template <typename ScannerT>
+        struct definition
+        {
+            typedef rule<ScannerT> rule_t;
+            rule_t top;
+            definition(ipv6addr_parser const& self) {
+                top = ( lexeme_d[repeat_p(7)[repeat_p(1,4)[xdigit_p] >> ":"] >> repeat_p(1,4)[xdigit_p]]
+                        | lexeme_d[(repeat_p(1,7)[repeat_p(1,4)[xdigit_p] >> ":"] | ":") >> (repeat_p(1,7)[":" >> repeat_p(1,4)[xdigit_p]] | ":")])
+                    [var(self.val)=bind(&str2addr<struct in6_addr, AF_INET6, typename ScannerT::iterator_t>)(arg1,arg2)];
+            }
+            rule_t const& start() const { return top; }
+        };
+        mutable struct in6_addr val;
+    };
 }
 
 #endif /* VAR_HPP */

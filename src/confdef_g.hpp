@@ -25,7 +25,6 @@ struct confdef_g : public grammar<confdef_g>
     struct typvar_uint_val : closure<typvar_uint_val, pair<type_t,var_t>, unsigned int> { member1 val; member2 len; };
     struct typvars_val : closure<typvars_val, vector<pair<type_t,var_t> > > { member1 val; };
     struct uint_val   : closure<uint_val, unsigned int>      { member1 val; };
-    struct bool_val   : closure<bool_val, bool>              { member1 val; };
     struct string_val : closure<string_val, string>          { member1 val; };
     struct strvec_val : closure<strvec_val, vector<string> > { member1 val; };
     enum symtype_t {
@@ -171,22 +170,6 @@ struct confdef_g : public grammar<confdef_g>
         return false; // return dummy value
     }
 
-    template<typename InAddrT, int af, typename IteratorT>
-    static InAddrT str2addr(const IteratorT& first, const IteratorT& last) {
-        string s(first, last);
-        InAddrT ret;
-        if (inet_pton(af, s.c_str(), &ret) != 1) throw_(first, string("invalid address format"));
-        return ret;
-    }
-    template<typename IteratorT>
-    static struct tm str2time(const char *fmt, const IteratorT& first, const IteratorT& last) {
-        string s(first, last);
-        struct tm ret = {0};
-        char *p = strptime(s.c_str(), fmt, &ret);
-        if (p == NULL || *p != '\0') throw_(first, string("invalid time format"));
-        return ret;
-    }
-
     template <typename ScannerT> struct definition
     {
 	rule<ScannerT> config_r, spec_r, itemdef_r, enumdef_r;
@@ -194,15 +177,11 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT,typvar_uint_val::context_t> postfix_texp_r ;
 	rule<ScannerT,typvars_val::context_t> compound_texp_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
-        rule<ScannerT,variant_val::context_t> value_r, datetime_r;
 	rule<ScannerT> mandatory_r, constraints_r, qualifier_r;
         rule<ScannerT> new_sym, id_r;
-        rule<ScannerT> date_r, time_r, ipv4addr_r, ipv6addr_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
         rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
-        rule<ScannerT,string_val::context_t> string_r;
-        rule<ScannerT,bool_val::context_t> bool_r;
-
+        value_parser value_r;
 	sym_s sym_p;
 
         definition(confdef_g const& self) {
@@ -216,14 +195,13 @@ struct confdef_g : public grammar<confdef_g>
             using phoenix::arg1;
 	    using phoenix::arg2;
 	    using phoenix::var;
-	    using phoenix::val;
             using phoenix::bind;
 	    using phoenix::construct_;
 	    using phoenix::static_cast_;
             //
             // <config>    ::= config { <spec>* }
             // <spec>      ::= <enumdef> | <itemdef>
-            // <itemdef>   ::= <mandatory>? <id> <qualifire>? : <compound_type> ;
+            // <itemdef>   ::= <mandatory>? <qualifire>? <id> <compound_type> ;
             // <enumdef>   ::= enum <id> { <id> (, <id>)* }
             // <mandatory> ::= required | optional
             //
@@ -270,7 +248,7 @@ struct confdef_g : public grammar<confdef_g>
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)
                               [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
                     >> !( '('
-                          >> ( value_r[var(self.cur_val)=arg1][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),arg1)] |
+                          >> ( value_r[var(self.cur_val)=var(value_r.val)][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),var(value_r.val))] |
                                ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) >> type_mismatch(nothing_p) ) )
                           >> eps_p[bind(chk_defval(self.cur_type.second,self.cur_val))(arg1,arg2)]
                           >> ')' )
@@ -284,34 +262,6 @@ struct confdef_g : public grammar<confdef_g>
                                ( value_r >> type_mismatch(nothing_p) ) )
                           >> ')' )
 		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
-            value_r
-                = lexeme_d[((str_p("0x")|"0X") >> hex_p[value_r.val=arg1])]
-                | datetime_r[value_r.val=arg1]
-                | ipv4addr_r[value_r.val=phoenix::bind(&str2addr<struct in_addr,  AF_INET,  typename ScannerT::iterator_t>)(arg1,arg2)]
-                | ipv6addr_r[value_r.val=phoenix::bind(&str2addr<struct in6_addr, AF_INET6, typename ScannerT::iterator_t>)(arg1,arg2)]
-                | strict_real_p[value_r.val=arg1]
-                | uint_p    [value_r.val=arg1]
-                | int_p     [value_r.val=arg1]
-                | bool_r    [value_r.val=arg1]
-                | string_r  [value_r.val=arg1];
-            bool_r
-                = str_p("true") [bool_r.val=true]
-                | str_p("false")[bool_r.val=false];
-            string_r
-                = confix_p('"', (*c_escape_ch_p)[string_r.val = construct_<string>(arg1,arg2)], '"');
-            datetime_r
-                = (date_r >> time_r)[datetime_r.val=phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d %T",arg1,arg2)]
-                | date_r[datetime_r.val=phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d",arg1,arg2)];
-            date_r
-                = lexeme_d[repeat_p(1,4)[digit_p] >> "/" >> repeat_p(1,2)[digit_p] >> "/" >> repeat_p(1,2)[digit_p]];
-            time_r
-                = lexeme_d[repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p]];
-            ipv4addr_r
-                = lexeme_d[repeat_p(3)[repeat_p(1,3)[digit_p] >> "."] >> repeat_p(1,3)[digit_p]];
-            ipv6addr_r
-                = lexeme_d[repeat_p(7)[repeat_p(1,4)[xdigit_p] >> ":"] >> repeat_p(1,4)[xdigit_p]]
-                | lexeme_d[(repeat_p(1,7)[repeat_p(1,4)[xdigit_p] >> ":"] | ":") >> (repeat_p(1,7)[":" >> repeat_p(1,4)[xdigit_p]] | ":")];
-
             // not yet implemented
 	    constraints_r
                 = eps_p;

@@ -65,7 +65,6 @@ namespace conf4cpp
     };
 
     struct variant_val : closure<variant_val, var_t>  { member1 val; };
-    struct string_val  : closure<string_val,  string> { member1 val; };
     struct item_val    : closure<item_val, string, error_t> { member1 kwid; member2 err;};
 
     template <typename derived_T>
@@ -74,7 +73,6 @@ namespace conf4cpp
         base_config_parser(value_map_t& vm) : vmap(vm) {}
         static var_t add_value(var_t& v1, const var_t& v2) { vector<var_t> v = var2<vector<var_t> >(v1); v.push_back(v2); return v; }
 
-
         vector<string> reqs;
         tyinfo_map_t timap;
         value_map_t& vmap;
@@ -82,20 +80,15 @@ namespace conf4cpp
         template <typename ScannerT> struct definition
         {
             rule<ScannerT> config_r;
-            rule<ScannerT, variant_val::context_t> value_r, atomic_value_r, bool_r;
-            rule<ScannerT, string_val::context_t> string_r;
+            rule<ScannerT, variant_val::context_t> values_r, atomic_value_r;
             rule<ScannerT, item_val::context_t> item_r;
-            rule<ScannerT> date_r, time_r;
-            datetime_parser datetime_r;
-            ipv6addr_parser ipv6addr_r;
-            ipv4addr_parser ipv4addr_r;
+            value_parser value_p;
 
             typename derived_T::keywords keywords_p;
             typename derived_T::constvals constvals_p;
 
             definition(base_config_parser const& self) {
                 using phoenix::arg1;
-                using phoenix::arg2;
                 using phoenix::construct_;
                 using phoenix::var;
                 config_r
@@ -103,39 +96,18 @@ namespace conf4cpp
                 item_r
                     = keywords_p[item_r.kwid = arg1]
                         >> '='
-                        >> value_r[item_r.err = phoenix::bind(store_value(self.timap,self.vmap))(item_r.kwid,arg1)]
+                        >> values_r[item_r.err = phoenix::bind(store_value(self.timap,self.vmap))(item_r.kwid,arg1)]
                         >> eps_p[phoenix::bind(check_value())(item_r.err,arg1)]
                         >> ';';
-                value_r
-                    = atomic_value_r[value_r.val = construct_<vector<var_t> >(1,arg1)]
-                        >> *(',' >> atomic_value_r[value_r.val = phoenix::bind(&add_value)(value_r.val,arg1)]);
+                values_r
+                    = atomic_value_r[values_r.val = construct_<vector<var_t> >(1,arg1)]
+                        >> *(',' >> atomic_value_r[values_r.val = phoenix::bind(&add_value)(values_r.val,arg1)]);
                 atomic_value_r
-                    = lexeme_d[(str_p("0x")|"0X") >> hex_p[atomic_value_r.val = arg1]]
-                    | datetime_r[atomic_value_r.val = var(datetime_r.val)]
-                    | ipv4addr_r[atomic_value_r.val = var(ipv4addr_r.val)]
-                    | ipv6addr_r[atomic_value_r.val = var(ipv6addr_r.val)]
-                    | strict_real_p[atomic_value_r.val = arg1]
-                    | uint_p	[atomic_value_r.val = arg1]
-                    | int_p	[atomic_value_r.val = arg1]
-                    | bool_r	[atomic_value_r.val = arg1]
-                    | string_r	[atomic_value_r.val = arg1]
-                    | ch_p('{')[atomic_value_r.val = construct_<vector<var_t> >()]
-                        >> !value_r[atomic_value_r.val = arg1] >> '}'
+                    = value_p[atomic_value_r.val=var(value_p.val)]
+                    | ch_p('{')[atomic_value_r.val=construct_<vector<var_t> >()]
+                        >> !values_r[atomic_value_r.val=arg1] >> '}'
                     //	| '{' >> *item_r >> '}'
-                    | constvals_p	[atomic_value_r.val = arg1];
-
-                bool_r
-                    = str_p("true") [bool_r.val = true ]
-                    | str_p("false")[bool_r.val = false];
-                string_r
-                    = confix_p('"', (*c_escape_ch_p)[string_r.val = construct_<string>(arg1,arg2)], '"');
-                datetime_r
-                    = (date_r >> time_r)[datetime_r.val = phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d %T",arg1,arg2)]
-                    | date_r[datetime_r.val = phoenix::bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d",arg1,arg2)];
-                date_r
-                    = lexeme_d[repeat_p(1,4)[digit_p] >> "/" >> repeat_p(1,2)[digit_p] >> "/" >> repeat_p(1,2)[digit_p]];
-                time_r
-                    = lexeme_d[repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p]];
+                    | constvals_p[atomic_value_r.val=arg1];
             }
 
             rule<ScannerT> const& start() const { return config_r; }

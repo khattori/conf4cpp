@@ -74,9 +74,9 @@ namespace conf4cpp
     using phoenix::arg2;
     using phoenix::bind;
     using phoenix::var;
-
+    using phoenix::construct_;
     //
-    // IPアドレスパーサ定義
+    // 時刻パーサ定義
     //
     template<typename IteratorT>
     inline struct tm str2time(const char *fmt, const IteratorT& first, const IteratorT& last) {
@@ -86,6 +86,26 @@ namespace conf4cpp
         if (p == NULL || *p != '\0') throw_(first, invalid_time);
         return ret;
     }
+
+    struct datetime_parser : public grammar<datetime_parser>
+    {
+        template <typename ScannerT>
+        struct definition
+        {
+            typedef rule<ScannerT> rule_t;
+            rule_t top, date_r, time_r;
+            definition(datetime_parser const& self) {
+                top = (date_r >> time_r)[var(self.val)=bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d %T",arg1,arg2)]
+                    | date_r[var(self.val)=bind(&str2time<typename ScannerT::iterator_t>)("%Y/%m/%d",arg1,arg2)];
+                date_r
+                    = lexeme_d[repeat_p(1,4)[digit_p] >> "/" >> repeat_p(1,2)[digit_p] >> "/" >> repeat_p(1,2)[digit_p]];
+                time_r
+                    = lexeme_d[repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p] >> ":" >> repeat_p(1,2)[digit_p]];
+            }
+            rule_t const& start() const { return top; }
+        };
+        mutable struct tm val;
+    };
 
     //
     // IPアドレスパーサ定義
@@ -129,6 +149,34 @@ namespace conf4cpp
             rule_t const& start() const { return top; }
         };
         mutable struct in6_addr val;
+    };
+
+    struct value_parser : public grammar<value_parser>
+    {
+        template <typename ScannerT>
+        struct definition
+        {
+            typedef rule<ScannerT> rule_t;
+            rule_t top;
+            datetime_parser datetime_r;
+            ipv4addr_parser ipv4addr_r;
+            ipv6addr_parser ipv6addr_r;
+
+            definition(value_parser const& self) {
+                top
+                    = lexeme_d[((str_p("0x")|"0X") >> hex_p[var(self.val)=arg1])]
+                    | datetime_r[var(self.val)=var(datetime_r.val)]
+                    | ipv4addr_r[var(self.val)=var(ipv4addr_r.val)]
+                    | ipv6addr_r[var(self.val)=var(ipv6addr_r.val)]
+                    | strict_real_p[var(self.val)=arg1]
+                    | uint_p[var(self.val)=arg1]
+                    | int_p[var(self.val)=arg1]
+                    | str_p("true")[var(self.val)=true] | str_p("false")[var(self.val)=false]
+                    | confix_p('"', (*c_escape_ch_p)[var(self.val)=construct_<string>(arg1,arg2)], '"');
+            }
+            rule_t const& start() const { return top; }
+        };
+        mutable var_t val;
     };
 }
 

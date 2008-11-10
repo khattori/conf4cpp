@@ -1,3 +1,7 @@
+2008-11-10  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* datetime, ipv4addr, ipv6addrのパーサー定義を共通化
+
 2008-11-05  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* mutable, constキーワードの追加と，set_メンバー関数出力部の追加

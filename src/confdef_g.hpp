@@ -181,7 +181,7 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT> new_sym, id_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
         rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
-        value_parser value_r;
+        value_parser value_p;
 	sym_s sym_p;
 
         definition(confdef_g const& self) {
@@ -248,7 +248,7 @@ struct confdef_g : public grammar<confdef_g>
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)
                               [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
                     >> !( '('
-                          >> ( value_r[var(self.cur_val)=var(value_r.val)][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),var(value_r.val))] |
+                          >> ( value_p[var(self.cur_val)=var(value_p.val)][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),var(value_p.val))] |
                                ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) >> type_mismatch(nothing_p) ) )
                           >> eps_p[bind(chk_defval(self.cur_type.second,self.cur_val))(arg1,arg2)]
                           >> ')' )
@@ -259,7 +259,7 @@ struct confdef_g : public grammar<confdef_g>
                           >> ( ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) )
                                        [bind(chk_enumelem(self.enumelem_map,self.cur_type.second))(arg1,arg2)]
                                        [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),construct_<string>(arg1,arg2))] |
-                               ( value_r >> type_mismatch(nothing_p) ) )
+                               ( value_p >> type_mismatch(nothing_p) ) )
                           >> ')' )
 		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
             // not yet implemented

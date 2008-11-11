@@ -63,14 +63,13 @@ namespace conf4cpp
 	    if (err != error_none) throw_(where, err);
 	}
     };
-
     struct variant_val : closure<variant_val, var_t>  { member1 val; };
-    struct item_val    : closure<item_val, string, error_t> { member1 kwid; member2 err;};
 
     template <typename derived_T>
     struct base_config_parser : public grammar<base_config_parser<derived_T> >
     {
         base_config_parser(value_map_t& vm) : vmap(vm) {}
+
         static var_t add_value(var_t& v1, const var_t& v2) { vector<var_t> v = var2<vector<var_t> >(v1); v.push_back(v2); return v; }
 
         vector<string> reqs;
@@ -79,9 +78,8 @@ namespace conf4cpp
 
         template <typename ScannerT> struct definition
         {
-            rule<ScannerT> config_r;
+            rule<ScannerT> config_r, item_r;
             rule<ScannerT, variant_val::context_t> values_r, atomic_value_r;
-            rule<ScannerT, item_val::context_t> item_r;
             value_parser value_p;
 
             typename derived_T::keywords keywords_p;
@@ -91,17 +89,20 @@ namespace conf4cpp
                 using phoenix::arg1;
                 using phoenix::construct_;
                 using phoenix::var;
+                using phoenix::bind;
+
                 config_r
                     = *item_r >> end_p;
                 item_r
-                    = keywords_p[item_r.kwid = arg1]
+                    = keywords_p[var(self.kwid) = arg1]
                         >> '='
-                        >> values_r[item_r.err = phoenix::bind(store_value(self.timap,self.vmap))(item_r.kwid,arg1)]
-                        >> eps_p[phoenix::bind(check_value())(item_r.err,arg1)]
+                        >> values_r[var(self.err) = bind(store_value(self.timap,self.vmap))(var(self.kwid),arg1)]
+                        >> eps_p[bind(check_value())(var(self.err),arg1)]
                         >> ';';
                 values_r
-                    = atomic_value_r[values_r.val = construct_<vector<var_t> >(1,arg1)]
-                        >> *(',' >> atomic_value_r[values_r.val = phoenix::bind(&add_value)(values_r.val,arg1)]);
+                    = atomic_value_r[values_r.val=construct_<vector<var_t> >(1,arg1)]
+//                        >> *(',' >> atomic_value_r[values_r.val=bind(&add_value)(values_r.val,arg1)]);
+                        >> *(',' >> atomic_value_r[values_r.val=bind(&add_value)(values_r.val,arg1)]);
                 atomic_value_r
                     = value_p[atomic_value_r.val=var(value_p.val)]
                     | ch_p('{')[atomic_value_r.val=construct_<vector<var_t> >()]
@@ -112,6 +113,8 @@ namespace conf4cpp
 
             rule<ScannerT> const& start() const { return config_r; }
         };
+        mutable string kwid;
+        mutable error_t err;
     };
 
 }

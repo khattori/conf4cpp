@@ -14,6 +14,7 @@
 #include "confgen.hpp"
 
 using namespace std;
+using namespace boost::spirit;
 
 static const char* version = CONF4CPP_VERSION;
 static const char* program = "conf4cpp";
@@ -111,7 +112,7 @@ int main(int argc, char* argv[])
                 fprintf(stderr, "%s: %d: parse error\n", input_file, pinfo.stop.get_position().line);
                 goto error_return;
             }
-        } catch (boost::spirit::parser_error<string,position_iterator_t>& e) {
+        } catch (const parser_error<string,position_iterator_t>& e) {
             fprintf(stderr, "%s: %d: %s\n", input_file, e.where.get_position().line, e.descriptor.c_str());
             goto error_return;
         }

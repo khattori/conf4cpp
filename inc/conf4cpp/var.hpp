@@ -15,7 +15,6 @@
 #include <boost/variant.hpp>
 #include <boost/spirit.hpp>
 #include <boost/spirit/phoenix.hpp>
-#include <conf4cpp/error.hpp>
 
 using namespace std;
 
@@ -83,7 +82,7 @@ namespace conf4cpp
         string s(first, last);
         struct tm ret = {0};
         char *p = strptime(s.c_str(), fmt, &ret);
-        if (p == NULL || *p != '\0') throw_(first, invalid_time);
+        if (p == NULL || *p != '\0') throw_(first, string("invalid time format"));
         return ret;
     }
 
@@ -114,7 +113,7 @@ namespace conf4cpp
     inline InAddrT str2addr(const IteratorT& first, const IteratorT& last) {
         string s(first, last);
         InAddrT ret;
-        if (inet_pton(af, s.c_str(), &ret) != 1) throw_(first, invalid_addr);
+        if (inet_pton(af, s.c_str(), &ret) != 1) throw_(first, string("invalid IP address format"));
         return ret;
     }
 

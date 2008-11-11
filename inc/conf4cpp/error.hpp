@@ -14,45 +14,18 @@ using namespace std;
 
 namespace conf4cpp
 {
-    enum error_t {
-	error_none,
-	file_error,
-	parse_error,
-	invalid_length,
-	type_mismatch,
-	item_redefined,
-	item_undefined,
-        invalid_time,
-        invalid_addr,
-    };
     class error : public exception
     {
     public:
-	error(error_t err) throw()
-	    : msg_(err2str(err)) {}
-	error(error_t err, int line) throw()
-	    : msg_(string(err2str(err)) + " at line: " +  boost::lexical_cast<string>(line)) {}
-	error(error_t err, string item) throw()
-	    : msg_(string(err2str(err)) + ": " +  item) {}
+	error(const string& msg) throw() : msg_(msg) {}
+	error(const string& msg, unsigned int line) throw()
+	    : msg_(msg + " at line: " +  boost::lexical_cast<string>(line)) {}
+	error(const string& msg, const string& item) throw()
+	    : msg_(msg + ": " +  item) {}
 	virtual ~error() throw() {}
 	const char* what() const throw() { return msg_.c_str(); }
     private:
 	const string msg_;
-
-        static const char *err2str(error_t err) {
-            static const char* tbl[] = {
-                "no error",
-                "file error",
-                "parse error",
-                "invalid length",
-                "type mismatch",
-                "item redefined",
-                "item undefined",
-                "invalid time format",
-                "invalid address format",
-            };
-            return tbl[err];
-        }
     };
 }
 

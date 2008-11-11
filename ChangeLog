@@ -1,3 +1,9 @@
+2008-11-11  Kenta Hattori  <hattori@bach.tatta.org>
+
+	* conf4cpp-0.0.4 リリース
+	
+	* エラーまわりの処理を整理，簡素化
+
 2008-11-10  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* datetime, ipv4addr, ipv6addrのパーサー定義を共通化

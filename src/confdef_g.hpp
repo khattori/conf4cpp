@@ -8,6 +8,7 @@
 
 #include <time.h>
 #include <netinet/in.h>
+#include <boost/variant.hpp>
 #include <boost/spirit.hpp>
 #include <boost/spirit/actor.hpp>
 #include <boost/spirit/error_handling/exceptions.hpp>
@@ -24,6 +25,7 @@ struct confdef_g : public grammar<confdef_g>
     struct typvar_val : closure<typvar_val, pair<type_t,var_t> >{ member1 val; };
     struct typvar_uint_val : closure<typvar_uint_val, pair<type_t,var_t>, unsigned int> { member1 val; member2 len; };
     struct typvars_val : closure<typvars_val, vector<pair<type_t,var_t> > > { member1 val; };
+    struct pairvar_val : closure<pairvar_val, pair<var_t,var_t> >{ member1 val; };
     struct uint_val   : closure<uint_val, unsigned int>      { member1 val; };
     struct string_val : closure<string_val, string>          { member1 val; };
     struct strvec_val : closure<strvec_val, vector<string> > { member1 val; };
@@ -177,7 +179,8 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT,typvar_uint_val::context_t> postfix_texp_r ;
 	rule<ScannerT,typvars_val::context_t> compound_texp_r;
         rule<ScannerT,uint_val::context_t> list_type_r;
-	rule<ScannerT> mandatory_r, constraints_r, qualifier_r;
+        rule<ScannerT,pairvar_val::context_t> constraints_r;
+	rule<ScannerT> mandatory_r, qualifier_r;
         rule<ScannerT> new_sym, id_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
         rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
@@ -240,15 +243,17 @@ struct confdef_g : public grammar<confdef_g>
 		= list_type_r[postfix_texp_r.len=arg1]
                     >> '<' >> texp_r[postfix_texp_r.val=bind(&make_typvar)(postfix_texp_r.len,arg1)] >> '>'
 //                    >> !( '(' >> uint_p >> ')' )
-	        | atomic_texp_r[postfix_texp_r.val=arg1] >> !('[' >> constraints_r >> ']');
+	        | atomic_texp_r[postfix_texp_r.val=arg1];
 	    list_type_r
 		= str_p("list")[list_type_r.val=0] >> !('[' >> uint_p[list_type_r.val=arg1] >> ']');
 	    atomic_texp_r
 		= sym_p[var(self.cur_type)=arg1]
-                    >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)
-                              [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
+                    >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[var(self.cur_atyp)=bind(&get_atom)(var(self.cur_type.second))]
+                    >> !('[' >> constraints_r[var(self.cur_atyp)=construct_<ti_atomic_t>(var(self.cur_atyp.t),arg1)] >> ']')
+                    >> eps_p
+                         [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_atyp),bind(&def_value)(var(self.cur_atyp)))]
                     >> !( '('
-                          >> ( value_p[var(self.cur_val)=var(value_p.val)][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),var(value_p.val))] |
+                          >> ( value_p[var(self.cur_val)=var(value_p.val)][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_atyp),var(value_p.val))] |
                                ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) >> type_mismatch(nothing_p) ) )
                           >> eps_p[bind(chk_defval(self.cur_type.second,self.cur_val))(arg1,arg2)]
                           >> ')' )
@@ -262,9 +267,16 @@ struct confdef_g : public grammar<confdef_g>
                                ( value_p >> type_mismatch(nothing_p) ) )
                           >> ')' )
 		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
-            // not yet implemented
+
 	    constraints_r
-                = eps_p;
+                = eps_p[var(self.cur_range)=construct_<pair<var_t,var_t> >(false,false)] >>
+                ( strict_real_p[var(self.cur_range.first)=arg1] >> '~' >> !strict_real_p[var(self.cur_range.second)=arg1]
+                  | uint_p[var(self.cur_range.first)=arg1] >> '~' >> !uint_p[var(self.cur_range.second)=arg1]
+                  | int_p[var(self.cur_range.first)=arg1] >> '~' >> !int_p[var(self.cur_range.second)=arg1]
+                  | '~' >> (strict_real_p[var(self.cur_range.second)=arg1]
+                            | uint_p[var(self.cur_range.second)=arg1]
+                            | int_p[var(self.cur_range.second)=arg1]) ) >>
+                eps_p[constraints_r.val=var(self.cur_range)];
 
 	    id_r
 		= lexeme_d[(alpha_p|'_') >> +(alnum_p|'_')];
@@ -292,6 +304,8 @@ struct confdef_g : public grammar<confdef_g>
     mutable string cur_sym;
     mutable bool cur_req, cur_con;
     mutable pair<symtype_t,type_t> cur_type, cur_type2;
+    mutable ti_atomic_t cur_atyp;
+    mutable pair<var_t, var_t> cur_range;
     mutable var_t cur_val;
     mutable vector<string> elem_list;
     mutable map<string, pair<type_t,var_t> > itemtypvar_map;

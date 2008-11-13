@@ -13,6 +13,7 @@
 #include <vector>
 #include <map>
 #include <boost/variant.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/spirit.hpp>
 #include <boost/spirit/phoenix.hpp>
 
@@ -56,6 +57,22 @@ namespace conf4cpp
     inline bool is_ipv6addr (const var_t& v) { return v.which() == IS_IPV6ADDR; }
     inline bool is_pair     (const var_t& v) { return v.which() == IS_PAIR;     }
     inline bool is_vector   (const var_t& v) { return v.which() == IS_VECTOR;   }
+    inline string to_str(const var_t& v) {
+        switch(v.which()) {
+	case IS_BOOL: return boost::get<bool>(v) ? "true" : "false";
+	case IS_INT: return boost::lexical_cast<string>(boost::get<int>(v));
+        case IS_UINT: return boost::lexical_cast<string>(boost::get<unsigned int>(v));
+	case IS_DOUBLE: return boost::lexical_cast<string>(boost::get<double>(v));
+	case IS_STRING: return "\"" + boost::get<string>(v) +  "\"";
+        case IS_TIME:
+        case IS_IPV4ADDR:
+        case IS_IPV6ADDR:
+	case IS_PAIR:
+	case IS_VECTOR:
+	assert(false);
+        }
+	return "???";
+    }
 
     template<typename T> const T& var2(const var_t &v) { return boost::get<T>(v); }
 

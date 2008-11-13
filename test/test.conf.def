@@ -53,4 +53,16 @@ config test_conf {
 	optional net6addr_val	: ipv6addr,int;
 
 	optional datadrstr_vals	: list<time,ipv4addr,string>;
+
+	optional real_ranval	: real[32.5~100.3];
+	optional real_ranval2	: real[-1.0~];
+	optional real_ranval3	: real[~50.0];
+	optional int_ranval	: int[-32 ~ -10];
+	optional int_ranval2	: int[-32~ 100];
+	optional int_ranval3	: int[3~ 100];
+	optional uint_ranval	: uint[32~100];
+	optional uint_ranval2	: uint[~100];
+	optional uint_ranval3	: uint[100 ~ ];
+
+	optional range_vals	: real[32.5~10.3],uint[100 ~ ],int[~-10](-3);
 }

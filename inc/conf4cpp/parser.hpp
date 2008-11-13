@@ -66,7 +66,7 @@ namespace conf4cpp
             value_parser value_p;
             typename derived_T::keywords keywords_p;
             typename derived_T::constvals constvals_p;
-
+            
             definition(base_config_parser const& self) {
                 assertion<string> item_redefined_e("item redefined");
                 assertion<string> type_mismatch_e("type mismatch");

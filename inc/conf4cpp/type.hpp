@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <map>
+#include <boost/optional.hpp>
 #include <boost/variant.hpp>
 #include <boost/spirit.hpp>
 #include <boost/lexical_cast.hpp>
@@ -18,7 +19,7 @@ using namespace boost::spirit;
 
 namespace conf4cpp
 {
-    enum ti_atomic_t {
+    enum atomic_t {
         TI_BOOL,
         TI_INT,
         TI_UINT,
@@ -27,6 +28,15 @@ namespace conf4cpp
         TI_TIME,
         TI_IPV4ADDR,
         TI_IPV6ADDR,
+    };
+    struct ti_atomic_t {
+        ti_atomic_t() : t(TI_BOOL) {}
+        ti_atomic_t(atomic_t t_) : t(t_) {}
+        ti_atomic_t(atomic_t t_, pair<var_t,var_t> c_) : t(t_), c(c_) {}
+        operator atomic_t() { return t; }
+
+        atomic_t t;
+        boost::optional<pair<var_t,var_t> >c;
     };
     struct ti_enum_t {
 	ti_enum_t(const string& eid_) : eid(eid_) {}
@@ -47,7 +57,7 @@ namespace conf4cpp
 
     inline bool is_prim_type(const type_t& typ) { return typ.which() < 2; }
     inline bool is_comp_type(const type_t& typ) { return !is_prim_type(typ); }
-
+    inline ti_atomic_t get_atom(const type_t& typ) { return boost::get<ti_atomic_t>(typ); }
     class type_checker : public boost::static_visitor<bool>
     {
     public:

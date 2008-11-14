@@ -57,6 +57,9 @@ namespace conf4cpp
             }
             return false;
         }
+        static bool out_of_range(tyinfo_map_t& tm, value_map_t& vm, const string& key) {
+            return !apply_visitor(range_checker(vm[key]), tm[key]);
+        }
 
         template <typename ScannerT> struct definition
         {
@@ -70,6 +73,7 @@ namespace conf4cpp
             definition(base_config_parser const& self) {
                 assertion<string> item_redefined_e("item redefined");
                 assertion<string> type_mismatch_e("type mismatch");
+                assertion<string> out_of_range_e("out of range");
                 using phoenix::arg1;
                 using phoenix::construct_;
                 using phoenix::var;
@@ -83,6 +87,7 @@ namespace conf4cpp
                     >> '='
                     >> values_r[insert_at_a(self.vmap,self.current_keywd)]
                     >> type_mismatch_e(eps_p(bind(&type_mismatch)(var(self.timap),var(self.vmap),var(self.current_keywd))==false))
+                    >> out_of_range_e(eps_p(bind(&out_of_range)(var(self.timap),var(self.vmap),var(self.current_keywd))==false))
                     >> ';';
                 values_r
                     = atomic_value_r[values_r.val=construct_<vector<var_t> >(1,arg1)]

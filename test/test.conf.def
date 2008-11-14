@@ -2,7 +2,7 @@ config test_conf {
 	enum week_t { MON, TUE, WED, THU, FRI, SAT, SUN }
 	enum fruit_t { Apple, Orange, Peach, Lemon }
 
-	required mutable int_val: int;
+	required mutable int_val: int[-1000~10000];
    	required const bool_val : bool;
 	required week_val	: week_t;
 	optional mutable string_val: string;
@@ -55,7 +55,7 @@ config test_conf {
 	optional datadrstr_vals	: list<time,ipv4addr,string>;
 
 	optional real_ranval	: real[32.5~100.3];
-	optional real_ranval2	: real[-1.0~];
+	optional real_ranval2	: real[1.0~];
 	optional real_ranval3	: real[~50.0];
 	optional int_ranval	: int[-32 ~ -10];
 	optional int_ranval2	: int[-32~ 100];

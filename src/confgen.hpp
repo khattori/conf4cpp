@@ -75,7 +75,6 @@ private:
     struct tset_string : public boost::static_visitor<string>
     {
         tset_string(unsigned int lv_) : lv(lv_) {}
-        template <typename T>
         string range_string(const string& ta_name, ti_atomic_t ta) const {
 	    if (!ta.c) return ta_name;
             return  "ti_atomic_t(" + ta_name + ",make_pair(" + to_str(ta.c->first) + "," + to_str(ta.c->second) + "))";
@@ -83,9 +82,9 @@ private:
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
             case TI_BOOL:     return "TI_BOOL"; 
-            case TI_INT:      return range_string<int>("TI_INT",ta);
-            case TI_UINT:     return range_string<unsigned int>("TI_UINT",ta);
-            case TI_DOUBLE:   return range_string<double>("TI_DOUBLE",ta);
+            case TI_INT:      return range_string("TI_INT",ta);
+            case TI_UINT:     return range_string("TI_UINT",ta);
+            case TI_DOUBLE:   return range_string("TI_DOUBLE",ta);
             case TI_STRING:   return "TI_STRING";
             case TI_TIME:     return "TI_TIME";
             case TI_IPV4ADDR: return "TI_IPV4ADDR";

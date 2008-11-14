@@ -104,6 +104,52 @@ namespace conf4cpp
     private:
 	var_t v_;
     };
+    class range_checker : public boost::static_visitor<bool>
+    {
+    public:
+	range_checker(const var_t& v) : v_(v) {}
+	bool operator() (ti_atomic_t ta) const {
+            if (!ta.c) return true;
+	    switch (ta) {
+	    case TI_BOOL:     return true;
+	    case TI_INT:      return (is_bool(ta.c->first) ||
+                                      (is_uint(ta.c->first) && is_uint(v_) && boost::get<unsigned int>(ta.c->first) <= boost::get<unsigned int>(v_)) ||
+                                      (is_int(v_) && boost::get<int>(ta.c->first) <= boost::get<int>(v_)) ||
+                                      (is_uint(v_) && boost::get<int>(ta.c->first)))
+                                  && (is_bool(ta.c->second) ||
+                                      (is_int(ta.c->second) && is_int(v_) && boost::get<int>(ta.c->second) >= boost::get<int>(v_)) ||
+                                      (is_uint(v_) && boost::get<unsigned int>(ta.c->second) >= boost::get<unsigned int>(v_)) ||
+                                      (is_int(v_) && boost::get<unsigned int>(ta.c->second)));
+	    case TI_UINT:     return (is_bool(ta.c->first)  || boost::get<unsigned int>(ta.c->first)  <= boost::get<unsigned int>(v_))
+                                  && (is_bool(ta.c->second) || boost::get<unsigned int>(ta.c->second) >= boost::get<unsigned int>(v_));
+	    case TI_DOUBLE:   return (is_bool(ta.c->first)  || boost::get<double>(ta.c->first)  <= boost::get<double>(v_))
+                                  && (is_bool(ta.c->second) || boost::get<double>(ta.c->second) >= boost::get<double>(v_));
+	    case TI_STRING:   return true;
+            case TI_TIME:     return true;
+            case TI_IPV4ADDR: return true;
+            case TI_IPV6ADDR: return true;
+	    default: assert(false);
+	    }
+	    return false;
+	}
+	bool operator() (ti_enum_t te) const { return true; }
+	bool operator() (pair<unsigned int, type_t> tp) const {
+	    vector<var_t> vec = var2<vector<var_t> >(v_);
+	    for (unsigned int i = 0; i < vec.size(); i++) {
+		if (!apply_visitor(range_checker(vec[i]), tp.second)) return false;
+	    }
+	    return true;
+	}
+	bool operator() (vector<type_t> tv) const {
+	    vector<var_t> vec = var2<vector<var_t> >(v_);
+	    for (unsigned int i = 0; i < tv.size(); i++) {
+		if (!apply_visitor(range_checker(vec[i]), tv[i])) return false;
+	    }
+	    return true;
+	}
+    private:
+	var_t v_;
+    };
 
 }
 

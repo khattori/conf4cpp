@@ -270,12 +270,9 @@ struct confdef_g : public grammar<confdef_g>
 
 	    constraints_r
                 = eps_p[var(self.cur_range)=construct_<pair<var_t,var_t> >(false,false)] >>
-                ( strict_real_p[var(self.cur_range.first)=arg1] >> '~' >> !strict_real_p[var(self.cur_range.second)=arg1]
-                  | uint_p[var(self.cur_range.first)=arg1] >> '~' >> !uint_p[var(self.cur_range.second)=arg1]
-                  | int_p[var(self.cur_range.first)=arg1] >> '~' >> !int_p[var(self.cur_range.second)=arg1]
-                  | '~' >> (strict_real_p[var(self.cur_range.second)=arg1]
-                            | uint_p[var(self.cur_range.second)=arg1]
-                            | int_p[var(self.cur_range.second)=arg1]) ) >>
+                !( strict_real_p[var(self.cur_range.first)=arg1] | uint_p[var(self.cur_range.first)=arg1] | int_p[var(self.cur_range.first)=arg1] ) >>
+                '~' >> 
+                !( strict_real_p[var(self.cur_range.second)=arg1] | uint_p[var(self.cur_range.second)=arg1] | int_p[var(self.cur_range.second)=arg1]) >>
                 eps_p[constraints_r.val=var(self.cur_range)];
 
 	    id_r

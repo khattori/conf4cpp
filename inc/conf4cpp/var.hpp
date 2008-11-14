@@ -60,9 +60,9 @@ namespace conf4cpp
     inline string to_str(const var_t& v) {
         switch(v.which()) {
 	case IS_BOOL: return boost::get<bool>(v) ? "true" : "false";
-	case IS_INT: return boost::lexical_cast<string>(boost::get<int>(v));
-        case IS_UINT: return boost::lexical_cast<string>(boost::get<unsigned int>(v));
-	case IS_DOUBLE: return boost::lexical_cast<string>(boost::get<double>(v));
+	case IS_INT: return "(int)" + boost::lexical_cast<string>(boost::get<int>(v));
+        case IS_UINT: return "(unsigned int)" + boost::lexical_cast<string>(boost::get<unsigned int>(v));
+	case IS_DOUBLE: return "(double)" + boost::lexical_cast<string>(boost::get<double>(v));
 	case IS_STRING: return "\"" + boost::get<string>(v) +  "\"";
         case IS_TIME:
         case IS_IPV4ADDR:

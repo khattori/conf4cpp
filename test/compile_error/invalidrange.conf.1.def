@@ -1,0 +1,3 @@
+config invalid_range_conf {
+	optional foo : int[~];
+}

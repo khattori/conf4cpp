@@ -129,6 +129,35 @@ struct confdef_g : public grammar<confdef_g>
             throw_(first, string("type mismatch"));
         }
     };
+    static bool chk_range(const pair<var_t, var_t>& range) {
+        if (is_bool(range.first)   && is_bool(range.second))   return false;
+        if (is_bool(range.first)   || is_bool(range.second))   return true;
+        if (is_double(range.first) && is_double(range.second)) return boost::get<double>(range.first)       <= boost::get<double>(range.second);
+        if (is_int(range.first)    && is_int(range.second))    return boost::get<int>(range.first)          <= boost::get<int>(range.second);
+        if (is_uint(range.first)   && is_uint(range.second))   return boost::get<unsigned int>(range.first) <= boost::get<unsigned int>(range.second);
+        if (is_int(range.first)    && is_uint(range.second))   return true;
+        return false;
+    }
+
+    static bool chk_rantype(const ti_atomic_t& atyp) {
+        switch (atyp.t) {
+        case TI_INT:
+            return
+                (is_bool(atyp.c->first)  || is_int(atyp.c->first) || is_uint(atyp.c->first)) &&
+                (is_bool(atyp.c->second) || is_int(atyp.c->first) || is_uint(atyp.c->second));
+        case TI_UINT:
+            return
+                (is_bool(atyp.c->first)  || is_uint(atyp.c->first)) &&
+                (is_bool(atyp.c->second) || is_uint(atyp.c->second));
+        case TI_DOUBLE:
+            return
+                (is_bool(atyp.c->first)  || is_double(atyp.c->first)) &&
+                (is_bool(atyp.c->second) || is_double(atyp.c->second));
+        default:
+            return false;
+        }
+    }
+
     // (uint,pair<type_t,var_t>) -> pair<pair<int,type_t>,var_t>
     static pair<type_t,var_t> make_typvar(unsigned int l, const pair<type_t,var_t>& typvar) {
         return make_pair(make_pair(l,typvar.first),typvar.second);
@@ -193,6 +222,7 @@ struct confdef_g : public grammar<confdef_g>
             assertion<string> typnm_redef("type name redefined");
             assertion<string> symbol_redef("symbol redefined");
             assertion<string> type_mismatch("type mismatch");
+            assertion<string> invalid_range("invalid range");
             assertion<string> parse_failed("parser error");
 
             using phoenix::arg1;
@@ -249,7 +279,9 @@ struct confdef_g : public grammar<confdef_g>
 	    atomic_texp_r
 		= sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[var(self.cur_atyp)=bind(&get_atom)(var(self.cur_type.second))]
-                    >> !('[' >> constraints_r[var(self.cur_atyp)=construct_<ti_atomic_t>(var(self.cur_atyp.t),arg1)] >> ']')
+                    >> !('[' >> constraints_r[var(self.cur_atyp)=construct_<ti_atomic_t>(var(self.cur_atyp.t),arg1)]
+                         >> (eps_p(bind(&chk_rantype)(var(self.cur_atyp))) | invalid_range(nothing_p))
+                         >> ']')
                     >> eps_p
                          [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_atyp),bind(&def_value)(var(self.cur_atyp)))]
                     >> !( '('
@@ -273,7 +305,7 @@ struct confdef_g : public grammar<confdef_g>
                 !( strict_real_p[var(self.cur_range.first)=arg1] | uint_p[var(self.cur_range.first)=arg1] | int_p[var(self.cur_range.first)=arg1] ) >>
                 '~' >> 
                 !( strict_real_p[var(self.cur_range.second)=arg1] | uint_p[var(self.cur_range.second)=arg1] | int_p[var(self.cur_range.second)=arg1]) >>
-                eps_p[constraints_r.val=var(self.cur_range)];
+                (eps_p(bind(&chk_range)(var(self.cur_range)))[constraints_r.val=var(self.cur_range)] | invalid_range(nothing_p));
 
 	    id_r
 		= lexeme_d[(alpha_p|'_') >> +(alnum_p|'_')];

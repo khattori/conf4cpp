@@ -79,56 +79,56 @@ struct confdef_g : public grammar<confdef_g>
     };
     struct add_elemsym
     {
+	typedef void result_type;
         sym_s& sym;
-        string en;
-        add_elemsym(sym_s &sym_, const string& en_) : sym(sym_), en(en_) {}
+        add_elemsym(sym_s &sym_) : sym(sym_) {}
         template<typename IteratorT>
-        void operator() (const IteratorT& first, const IteratorT& last) const {
+        result_type operator() (const string& en, const IteratorT& first, const IteratorT& last) const {
             string key(first, last);
             sym.add(key.c_str(), make_pair(SYM_ELEM, ti_enum_t(en)));
         }
     };
-    struct chk_defval
-    {
-	typedef void result_type;
-        const type_t &te;
-        const var_t &v;
-        chk_defval(const type_t& te_, const var_t& v_) : te(te_), v(v_) {}
-        template<typename IteratorT>
-        void operator() (const IteratorT& first, const IteratorT& last) const {
-            ti_atomic_t ta = boost::get<ti_atomic_t>(te);
-            switch (ta) {
-            case TI_DOUBLE:   if (is_double(v))   return; break;
-            case TI_INT:      if (is_int(v)||(is_uint(v) && boost::get<unsigned int>(v) <= INT_MAX)) return; break;
-            case TI_UINT:     if (is_uint(v))     return; break;
-            case TI_STRING:   if (is_string(v))   return; break;
-            case TI_BOOL:     if (is_bool(v))     return; break;
-            case TI_TIME:     if (is_time(v))     return; break;
-            case TI_IPV4ADDR: if (is_ipv4addr(v)) return; break;
-            case TI_IPV6ADDR: if (is_ipv6addr(v)) return; break;
-            }
-            throw_(first, string("type mismatch"));
+    static bool chk_defval(const ti_atomic_t& ta, const var_t& var) {
+        switch (ta.t) {
+        case TI_DOUBLE:   return is_double(var);
+        case TI_INT:      return is_int(var)||(is_uint(var) && boost::get<unsigned int>(var) <= INT_MAX);
+        case TI_UINT:     return is_uint(var);
+        case TI_STRING:   return is_string(var);
+        case TI_BOOL:     return is_bool(var);
+        case TI_TIME:     return is_time(var);
+        case TI_IPV4ADDR: return is_ipv4addr(var);
+        case TI_IPV6ADDR: return is_ipv6addr(var);
         }
-    };
-    struct chk_enumelem
-    {
-	typedef void result_type;
-        const map<string, vector<string> >& eem;
-        const type_t &te;
-        chk_enumelem(const map<string,vector<string> >&eem_, const type_t& te_) : eem(eem_), te(te_) {}
+        return false;
+    }
 
-        template<typename IteratorT>
-        void operator() (const IteratorT& first, const IteratorT& last) const {
-            string key(first, last);
-            if (!is_enum_type(te)) throw_(first, string("type mismatch"));
-            string eid = boost::get<ti_enum_t>(te).eid;
-            if (eem.find(eid) == eem.end()) throw_(first, string("type mismatch"));
-            for (unsigned int i = 0; i < eem.find(eid)->second.size(); i++) {
-                if (eem.find(eid)->second[i] == key) return;
-            }
-            throw_(first, string("type mismatch"));
+    static bool chk_defran(const ti_atomic_t& ta, const var_t& var) {
+        if (!ta.c) return true;
+        pair<var_t,var_t> ran = *ta.c;
+        switch (ta.t) {
+        case TI_DOUBLE:   return (is_bool(ran.first)  || boost::get<double>(ran.first)  <= boost::get<double>(var))
+                              && (is_bool(ran.second) || boost::get<double>(ran.second) >= boost::get<double>(var));
+        case TI_INT:      return (is_bool(ran.first)
+                                  || (is_int(ran.first) && is_int(var) && boost::get<int>(ran.first) <= boost::get<int>(var))
+                                  || (is_int(ran.first) && is_uint(var) && boost::get<int>(ran.first) <= (int)boost::get<unsigned int>(var))
+                                  || (is_uint(ran.first) && is_uint(var) && boost::get<unsigned int>(ran.first) <= boost::get<unsigned int>(var)))
+                              && (is_bool(ran.second)
+                                  || (is_int(ran.second) && is_int(var) && boost::get<int>(ran.second) >= boost::get<int>(var))
+                                  || (is_uint(ran.second) && is_int(var) && (int)boost::get<unsigned int>(ran.second) >= boost::get<int>(var))
+                                  || (is_uint(ran.second) && is_uint(var) && boost::get<unsigned int>(ran.second) >= boost::get<unsigned int>(var)));
+        case TI_UINT:     return (is_bool(ran.first)  || boost::get<unsigned int>(ran.first)  <= boost::get<unsigned int>(var))
+                              && (is_bool(ran.second) || boost::get<unsigned int>(ran.second) >= boost::get<unsigned int>(var));
+        default:
+            assert(false);
         }
-    };
+        return false;
+    }
+
+    static bool chk_enumelem(const type_t& ty1, const type_t& ty2) {
+        ti_enum_t te1 = boost::get<ti_enum_t>(ty1);
+        ti_enum_t te2 = boost::get<ti_enum_t>(ty2);
+        return te1.eid == te2.eid;
+    }
     static bool chk_range(const pair<var_t, var_t>& range) {
         if (is_bool(range.first)   && is_bool(range.second))   return false;
         if (is_bool(range.first)   || is_bool(range.second))   return true;
@@ -143,8 +143,8 @@ struct confdef_g : public grammar<confdef_g>
         switch (atyp.t) {
         case TI_INT:
             return
-                (is_bool(atyp.c->first)  || is_int(atyp.c->first) || is_uint(atyp.c->first)) &&
-                (is_bool(atyp.c->second) || is_int(atyp.c->first) || is_uint(atyp.c->second));
+                (is_bool(atyp.c->first)  || is_int(atyp.c->first)  || is_uint(atyp.c->first)) &&
+                (is_bool(atyp.c->second) || is_int(atyp.c->second) || (is_uint(atyp.c->second) && boost::get<unsigned int>(atyp.c->second) <= INT_MAX));
         case TI_UINT:
             return
                 (is_bool(atyp.c->first)  || is_uint(atyp.c->first)) &&
@@ -223,6 +223,7 @@ struct confdef_g : public grammar<confdef_g>
             assertion<string> symbol_redef("symbol redefined");
             assertion<string> type_mismatch("type mismatch");
             assertion<string> invalid_range("invalid range");
+            assertion<string> defval_outofrange("default value is out of range");
             assertion<string> parse_failed("parser error");
 
             using phoenix::arg1;
@@ -287,14 +288,16 @@ struct confdef_g : public grammar<confdef_g>
                     >> !( '('
                           >> ( value_p[var(self.cur_val)=var(value_p.val)][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_atyp),var(value_p.val))] |
                                ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) >> type_mismatch(nothing_p) ) )
-                          >> eps_p[bind(chk_defval(self.cur_type.second,self.cur_val))(arg1,arg2)]
+                          >> (eps_p(bind(&chk_defval)(var(self.cur_atyp),var(self.cur_val))) | type_mismatch(nothing_p))
+                          >> (eps_p(bind(&chk_defran)(var(self.cur_atyp),var(self.cur_val))) | defval_outofrange(nothing_p))
                           >> ')' )
 		| sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_ENUM)
                               [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
                     >> !( '('
-                          >> ( ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) )
-                                       [bind(chk_enumelem(self.enumelem_map,self.cur_type.second))(arg1,arg2)]
+                          >> ( ( sym_p[var(self.cur_type2)=arg1]
+                                 >> eps_p(var(self.cur_type2.first)==SYM_ELEM)
+                                 >> (eps_p(bind(&chk_enumelem)(var(self.cur_type.second),var(self.cur_type2.second))) | type_mismatch(nothing_p)) )
                                        [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),construct_<string>(arg1,arg2))] |
                                ( value_p >> type_mismatch(nothing_p) ) )
                           >> ')' )
@@ -321,7 +324,7 @@ struct confdef_g : public grammar<confdef_g>
             newenum_sym
                 = new_sym[add_enumsym(sym_p)][newenum_sym.val=construct_<string>(arg1,arg2)];
             newelem_sym
-                = new_sym[add_elemsym(sym_p,self.cur_sym)][newelem_sym.val=construct_<string>(arg1,arg2)];
+                = new_sym[bind(add_elemsym(sym_p))(var(self.cur_sym),arg1,arg2)][newelem_sym.val=construct_<string>(arg1,arg2)];
 	    elemseq_r
 		= newelem_sym[var(self.elem_list)=construct_<vector<string> >(1,arg1)]
                     >> *(',' >> newelem_sym[push_back_a(self.elem_list)])

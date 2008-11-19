@@ -19,4 +19,8 @@ config conf_error {
 	optional intbools_val	: list<int,bool>;
 	optional fruitsreal_val : list<fruit_t>,real;
 	optional weekbi_val	: (week_t,bool),int;
+
+	optional intran_val	: int[-10~10];
+	optional uintran_val	: uint[~100];
+	optional realran_val	: real[1.0~];
 }

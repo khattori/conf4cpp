@@ -5,14 +5,33 @@
  *===========================================================================*/
 #include "confgen.hpp"
 
+string confgen::to_cchar(const string& name)
+{
+    string ret;
+
+    for (string::const_iterator iter = name.begin(); iter != name.end(); ++iter) {
+        if (isalnum(*iter)) ret += toupper(*iter);
+        else ret += '_';
+    }
+    return ret;
+}
+
 void
-confgen::output_interface_header(ostream& os)
+confgen::output_interface_header(ostream& os, const string& incfile)
 {
     os << "// conf4cpp : interface definition" << endl;
     output_file_header(os);
+    os << "#ifndef " << to_cchar(incfile) << endl
+       << "#define " << to_cchar(incfile) << endl << endl;
     os << "#include <conf4cpp.hpp>" << endl
        << "#include <boost/tuple/tuple.hpp>" << endl
        << "using boost::tuple;" << endl;
+}
+
+void
+confgen::output_interface_footer(ostream& os)
+{
+    os << "#endif" << endl;
 }
 
 void
@@ -25,6 +44,11 @@ confgen::output_implementation_header(ostream& os, const string& incfile)
        << "#include <arpa/inet.h>" << endl;
     os << "#include \"" << incfile << "\"" << endl
        << "using namespace conf4cpp;" << endl;
+}
+
+void
+confgen::output_implementation_footer(ostream& os)
+{
 }
 
 void

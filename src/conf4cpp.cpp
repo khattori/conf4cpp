@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
     ofstream ofs_hpp(tmp_hpp);
     ofstream ofs_cpp(tmp_cpp);
 
-    confgen::output_interface_header(ofs_hpp);
+    confgen::output_interface_header(ofs_hpp, interface_file_name);
     confgen::output_implementation_header(ofs_cpp, interface_file_name);
 
     while (optind < argc) {
@@ -121,6 +121,8 @@ int main(int argc, char* argv[])
         gen.output_interface(ofs_hpp);
         gen.output_implementation(ofs_cpp);
     }
+    confgen::output_interface_footer(ofs_hpp);
+    confgen::output_implementation_footer(ofs_cpp);
 
     if (rename(tmp_hpp, interface_file_name.c_str()) < 0) {
         fprintf(stderr, "cannot create %s\n", interface_file_name.c_str());

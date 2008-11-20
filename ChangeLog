@@ -1,3 +1,9 @@
+2008-11-20  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* int, uint, real型の値に範囲指定を実装
+
+	* インクルードガードの出力を追加
+
 2008-11-11  Kenta Hattori  <hattori@bach.tatta.org>
 
 	* conf4cpp-0.0.4 リリース

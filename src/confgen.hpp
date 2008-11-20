@@ -32,11 +32,13 @@ public:
 
     void output_interface(ostream& os);
     void output_implementation(ostream& os);
-    static void output_interface_header(ostream& os);
+    static void output_interface_header(ostream& os, const string& incfile);
+    static void output_interface_footer(ostream& os);
     static void output_implementation_header(ostream& os, const string& incfile);
+    static void output_implementation_footer(ostream& os);
 
 private:
-
+    static string to_cchar(const string& name);
     //
     // format string for type variant
     // 

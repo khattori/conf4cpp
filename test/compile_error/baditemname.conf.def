@@ -1,0 +1,4 @@
+config bad_item_conf
+{
+	123item : int;
+}

@@ -15,15 +15,16 @@ namespace conf4cpp
     class base_config {
     public:
 	base_config(const string& fname) {
-	    derived_config_parser_T g(vm_);
-	    parse_config(fname, g);
+	    p = new derived_config_parser_T();
+	    parse_config(fname);
 	}
+	virtual ~base_config();
 
     protected:
-	value_map_t vm_;
+        derived_config_parser_T* p;
 
     private:
-	void parse_config(const string& fname, const derived_config_parser_T& g) {
+	void parse_config(const string& fname) {
 	    typedef file_iterator<char> file_iterator_t;
 
 	    file_iterator_t first(fname);
@@ -35,13 +36,13 @@ namespace conf4cpp
 	    position_iterator_t end;
 	    begin.set_tabchars(8);
 	    try {
-		parse_info<position_iterator_t> pinfo = parse(begin, end, g, eol_p|space_p|comment_p("#"));
+		parse_info<position_iterator_t> pinfo = parse(begin, end, *p, eol_p|space_p|comment_p("#"));
 		if (!pinfo.full) throw error("parse error", pinfo.stop.get_position().line);
 	    } catch (boost::spirit::parser_error<string,position_iterator_t>& e) {
 		throw error(e.descriptor, e.where.get_position().line);
 	    }
-	    for (unsigned int i = 0; i < g.reqs.size(); i++) {
-		if (vm_.find(g.reqs[i]) == vm_.end()) throw error("item undefined", g.reqs[i]);
+	    for (unsigned int i = 0; i < p->reqs.size(); i++) {
+		if (p->vmap.find(p->reqs[i]) == p->vmap.end()) throw error("item undefined", p->reqs[i]);
 	    }
 	}
     };

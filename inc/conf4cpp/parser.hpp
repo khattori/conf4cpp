@@ -28,8 +28,6 @@ namespace conf4cpp
     template <typename derived_T>
     struct base_config_parser : public grammar<base_config_parser<derived_T> >
     {
-        base_config_parser(value_map_t& vm) : vmap(vm) {}
-
         static var_t add_value(var_t& v1, const var_t& v2) {
             vector<var_t> v = var2<vector<var_t> >(v1);
             v.push_back(v2); return v;
@@ -106,7 +104,7 @@ namespace conf4cpp
         mutable string current_keywd;
         mutable set<string> defined_symbols;
         mutable tyinfo_map_t timap;
-        mutable value_map_t& vmap;
+        mutable value_map_t vmap;
         vector<string> reqs;
     };
 

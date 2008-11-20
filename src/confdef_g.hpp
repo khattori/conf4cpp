@@ -246,7 +246,7 @@ struct confdef_g : public grammar<confdef_g>
 
             itemdef_r
 		= eps_p[var(self.cur_req)=true][var(self.cur_con)=true]
-                    >> ((!mandatory_r >> !qualifier_r) | (!qualifier_r >> !mandatory_r))
+                    >> !((mandatory_r >> !qualifier_r) | (qualifier_r >> !mandatory_r))
                     >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)][insert_key_a(self.itemcon_map,self.cur_con)]
                     >> ':'
                     >> texp_r[insert_at_a(self.itemtypvar_map,self.cur_sym)] >> ';';

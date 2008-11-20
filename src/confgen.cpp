@@ -133,7 +133,7 @@ confgen::output_interface_accessors(ostream& os)
          ++iter) {
         os << "\tconst " << get_typestr(iter->second.first) << "& " << iter->first << "() const { return " << iter->first << "_; }" << endl;
         if (!itemreq_map_.find(iter->first)->second) os << "\tbool has_" << iter->first << "() const { return has_" << iter->first << "_; }" << endl;
-        if (!itemcon_map_.find(iter->first)->second) os << "\tvoid set_" << iter->first << "(const " << get_typestr(iter->second.first) << "& v) { " << iter->first << "_ = v; }" << endl;
+        if (!itemcon_map_.find(iter->first)->second) os << "\tbool set_" << iter->first << "(const " << get_typestr(iter->second.first) << "& v);" << endl;
     }
 }
 
@@ -172,8 +172,10 @@ confgen::output_implementation(ostream& os)
     output_implementation_parser_constructor(os);
     os << "};" << endl;
     output_implementation_config_constructor(os);
+    output_implementation_config_accessors(os);
     output_implementation_config_enum2str(os);
     output_implementation_config_dump(os);
+    os << "base_config<" << conf_name_ << "_parser>::~base_config() { delete p; }" << endl;
 }
 void
 confgen::output_implementation_keywords(ostream& os)
@@ -223,7 +225,7 @@ confgen::output_implementation_constvals(ostream& os)
 void
 confgen::output_implementation_parser_constructor(ostream& os)
 {
-    os << "\t" << conf_name_ << "_parser(value_map_t& vm) : base_config_parser<" << conf_name_ << "_parser>(vm)" << endl;
+    os << "\t" << conf_name_ << "_parser()" << endl;
     os << "\t{" << endl;
     // set required items
     os << "\t\t// set required items" << endl;
@@ -268,8 +270,8 @@ confgen::output_implementation_config_constructor(ostream& os)
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {
             // オプション項目
-            os << "\tif (vm_.find(\"" << iter->first << "\")!=vm_.end()) {" << endl;
-            os << "\t\tv_ = vm_[\"" << iter->first << "\"];" << endl;
+            os << "\tif (p->vmap.find(\"" << iter->first << "\")!=p->vmap.end()) {" << endl;
+            os << "\t\tv_ = p->vmap[\"" << iter->first << "\"];" << endl;
             os << "\t\t" << get_vsetstr(iter->second.first, iter->first+"_", "v_", 3) << endl;
             os << "\t\thas_" << iter->first << "_ = true;" << endl
                << "\t}" << endl
@@ -279,12 +281,26 @@ confgen::output_implementation_config_constructor(ostream& os)
                << "\t}" << endl;
         } else {
             // 必須項目
-            os << "\tv_ = vm_[\"" << iter->first << "\"];" << endl;
+            os << "\tv_ = p->vmap[\"" << iter->first << "\"];" << endl;
             os << "\t" << get_vsetstr(iter->second.first, iter->first+"_", "v_", 2) << endl;
         }
     }
 
     os << "}" << endl;
+}
+
+void
+confgen::output_implementation_config_accessors(ostream& os)
+{
+    os << "\t// definitions of accessors" << endl;
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+         iter != itemtypvar_map_.end();
+         ++iter) {
+        if (!itemcon_map_.find(iter->first)->second)
+            os << "\tbool " << conf_name_ << "::set_" << iter->first << "(const " << get_typestr(iter->second.first) << "& v) { if (range_check(p->timap[\""
+               << iter->first << "\"], v)) { " 
+               << iter->first << "_ = v; return true; } else return false; }" << endl;
+    }
 }
 
 void

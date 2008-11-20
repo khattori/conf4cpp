@@ -150,7 +150,9 @@ namespace conf4cpp
     private:
 	var_t v_;
     };
-
+    inline bool range_check(const type_t& typ, const var_t& var) {
+        return apply_visitor(range_checker(var), typ);
+    }
 }
 
 #endif /* TYPE_HPP */

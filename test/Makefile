@@ -4,7 +4,7 @@ SRCS	= \
 	test_conf.cpp
 
 CONF4CPP= ../src/conf4cpp
-CXXFLAGS= -Wall
+CXXFLAGS= -Wall -g
 CPPFLAGS= -I/usr/include/boost-1_33_1 -I../inc
 LIBS	=
 

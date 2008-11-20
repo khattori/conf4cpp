@@ -62,7 +62,8 @@ config test_conf {
 	optional int_ranval3	: int[3~ 100];
 	optional uint_ranval	: uint[32~100];
 	optional uint_ranval2	: uint[~100];
-	optional uint_ranval3	: uint[100 ~ ];
+	mutable optional uint_ranval3 : uint[100 ~ ];
 
 	optional range_vals	: real[32.5~100.3],uint[100 ~ ],int[~-10](-30);
 }
+

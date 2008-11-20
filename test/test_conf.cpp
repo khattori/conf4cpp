@@ -127,6 +127,11 @@ int main(int argc, char* args[])
     assert(conf.string_val()=="");
     conf.set_string_val("hoge");
     assert(conf.string_val()=="hoge");
+    assert(conf.set_uint_ranval3(123)==true);
+    assert(conf.uint_ranval3()==123);
+    assert(conf.set_uint_ranval3(11)==false);
+    assert(conf.uint_ranval3()==123);
+
     conf.dump(cout);
 
     return 0;

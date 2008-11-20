@@ -1,3 +1,7 @@
+2008-11-21  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* setter関数の戻り値をbool型にし，範囲チェックを追加
+
 2008-11-20  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* int, uint, real型の値に範囲指定を実装

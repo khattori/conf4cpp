@@ -132,16 +132,20 @@ int main(int argc, char* args[])
     assert(conf.set_uint_ranval3(11)==false);
     assert(conf.uint_ranval3()==123);
     // test general setter
-    assert(conf.set("uint_ranval3 = 200")==true);
+    assert(conf.set("uint_ranval3 = 200;")==true);
     assert(conf.uint_ranval3()==200);
     assert(conf.set("uint_ranval3 = 150; string_val = \"foo\"")==true);
     assert(conf.uint_ranval3()==150);
     assert(conf.string_val()=="foo");
     assert(conf.set("int_val=1;")==true);
     assert(conf.int_val()==1);
+    // 範囲外のデータはセットできない
     assert(conf.set("uint_ranval3 = 0; int_val=-123;")==false);
     assert(conf.uint_ranval3()==150);
     assert(conf.int_val()==1);
+    // const項目はsetできない
+    assert(conf.set("ipv4_value=1.2.3.4")==false);
+    assert(conf.ipv4_value().s_addr==0);
 
     conf.dump(cout);
 

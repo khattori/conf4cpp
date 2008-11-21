@@ -305,12 +305,14 @@ private:
 
     void output_interface_enumdefs(ostream& os);
     void output_interface_accessors(ostream& os);
+    void output_interface_setters(ostream& os);
     void output_interface_members(ostream& os);
     void output_implementation_keywords(ostream& os);
     void output_implementation_constvals(ostream& os);
     void output_implementation_parser_constructor(ostream& os);
     void output_implementation_config_constructor(ostream& os);
     void output_implementation_config_accessors(ostream& os);
+    void output_implementation_config_setters(ostream& os);
     void output_implementation_config_enum2str(ostream& os);
     void output_implementation_config_dump(ostream& os);
 

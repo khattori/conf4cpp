@@ -75,6 +75,7 @@ confgen::output_file_header(ostream& os)
 //    bool has_xxx() const { return has_xxx_; }
 //
 // private:
+//    // definitions of private setter
 //    // definitions of members
 //    xxx_t xxx_;
 //    bool has_xxx_t_;
@@ -91,7 +92,7 @@ confgen::output_interface(ostream& os)
     os << "{" << endl;
     os << "public:" << endl;
     os << "\t" << conf_name_ << "(const string& fname);" << endl;
-
+    
     output_interface_enumdefs(os);
     output_interface_accessors(os);
 
@@ -103,7 +104,7 @@ confgen::output_interface(ostream& os)
     }
 
     os << "private:" << endl;
-
+    output_interface_setters(os);
     output_interface_members(os);
 
     os << "};" << endl;
@@ -128,12 +129,24 @@ void
 confgen::output_interface_accessors(ostream& os)
 {
     os << "\t// definitions of accessors" << endl;
+    os << "\tbool set(const string& itemdef);" << endl;
     for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
          iter != itemtypvar_map_.end();
          ++iter) {
         os << "\tconst " << get_typestr(iter->second.first) << "& " << iter->first << "() const { return " << iter->first << "_; }" << endl;
         if (!itemreq_map_.find(iter->first)->second) os << "\tbool has_" << iter->first << "() const { return has_" << iter->first << "_; }" << endl;
         if (!itemcon_map_.find(iter->first)->second) os << "\tbool set_" << iter->first << "(const " << get_typestr(iter->second.first) << "& v);" << endl;
+    }
+}
+
+void
+confgen::output_interface_setters(ostream& os)
+{
+    os << "\t// definitions of private stters" << endl;
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+        iter != itemtypvar_map_.end();
+        ++iter) {
+        os << "\tvoid set_" << iter->first << "_(const conf4cpp::var_t& v_);" << endl;
     }
 }
 
@@ -177,6 +190,7 @@ confgen::output_implementation(ostream& os)
        << "}" << endl;
     output_implementation_config_constructor(os);
     output_implementation_config_accessors(os);
+    output_implementation_config_setters(os);
     output_implementation_config_enum2str(os);
     output_implementation_config_dump(os);
 }
@@ -262,30 +276,25 @@ confgen::output_implementation_parser_constructor(ostream& os)
 void
 confgen::output_implementation_config_constructor(ostream& os)
 {
+    os << "using boost::make_tuple;" << endl;
     os << "// definition config constructor" << endl;
     os << conf_name_ << "::" << conf_name_ << "(const string& fname) : base_config<" << conf_name_ << "_parser>(fname)" << endl;
     os << "{" << endl;
-    os << "\tusing boost::make_tuple;" << endl
-       << "\tvar_t v_ __attribute__((unused));" << endl
-       << "\ttime_t t_ __attribute__((unused));" << endl;
+    os << "\ttime_t t_ __attribute__((unused));" << endl;
     for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
          iter != itemtypvar_map_.end();
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {
             // オプション項目
             os << "\tif (p->vmap.find(\"" << iter->first << "\")!=p->vmap.end()) {" << endl;
-            os << "\t\tv_ = p->vmap[\"" << iter->first << "\"];" << endl;
-            os << "\t\t" << get_vsetstr(iter->second.first, iter->first+"_", "v_", 3) << endl;
-            os << "\t\thas_" << iter->first << "_ = true;" << endl
-               << "\t}" << endl
-               << "\telse {" << endl
+            os << "\t\tset_" << iter->first << "_(p->vmap[\"" << iter->first << "\"]);" << endl
+               << "\t} else {" << endl
                << "\t\thas_" << iter->first << "_ = false;" << endl
                << "\t\t" << iter->first << "_ = " << get_defvstr(iter->second.first, iter->second.second) << ";" << endl
                << "\t}" << endl;
         } else {
             // 必須項目
-            os << "\tv_ = p->vmap[\"" << iter->first << "\"];" << endl;
-            os << "\t" << get_vsetstr(iter->second.first, iter->first+"_", "v_", 2) << endl;
+            os << "\tset_" << iter->first << "_(p->vmap[\"" << iter->first << "\"]);" << endl;
         }
     }
 
@@ -308,6 +317,36 @@ confgen::output_implementation_config_accessors(ostream& os)
                 os << iter->first << "_ = v; return true; }" << endl;
 	    }
 	}
+    }
+    os << "bool " << conf_name_ << "::set(const string& itemdef) {" << endl;
+    os << "\tif (!base_config<" << conf_name_ << "_parser>::set(itemdef)) return false;" << endl;
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+         iter != itemtypvar_map_.end();
+         ++iter) {
+        string key = iter->first;
+        if (!itemcon_map_.find(key)->second) {
+            os << "\tif (p->vmap.find(\"" << key << "\")!=p->vmap.end()) set_" << key << "_(p->vmap[\"" << key << "\"]);" << endl;
+        } else {
+            os << "\tif (p->vmap.find(\"" << key << "\")!= p->vmap.end()) return false;" << endl;
+        }
+    }
+    os << "\treturn true;" << endl;
+    os << "}" << endl;
+}
+
+void
+confgen::output_implementation_config_setters(ostream& os)
+{
+    os << "// definitions of private setters" << endl;
+    for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
+         iter != itemtypvar_map_.end();
+         ++iter) {
+        os << "void " << conf_name_ << "::set_" << iter->first << "_(const var_t& v_) {" << endl;
+        if (!itemreq_map_.find(iter->first)->second) {
+            os << "\thas_" << iter->first << "_ = true;" << endl;
+        }
+        os << "\t" << get_vsetstr(iter->second.first, iter->first+"_", "v_", 2) << endl;
+        os << "}" << endl;
     }
 }
 

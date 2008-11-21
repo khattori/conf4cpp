@@ -78,15 +78,14 @@ namespace conf4cpp
                 using phoenix::bind;
 
                 config_r
-                    = *item_r >> end_p;
+                    = !item_r >> *( ';' >> !item_r) >> end_p;
                 item_r
                     = keywords_p[var(self.current_keywd)=arg1]
                     >> item_redefined_e(eps_p(bind(&item_redefined)(var(self.defined_symbols),var(self.current_keywd))==false))
                     >> '='
                     >> values_r[insert_at_a(self.vmap,self.current_keywd)]
                     >> type_mismatch_e(eps_p(bind(&type_mismatch)(var(self.timap),var(self.vmap),var(self.current_keywd))==false))
-                    >> out_of_range_e(eps_p(bind(&out_of_range)(var(self.timap),var(self.vmap),var(self.current_keywd))==false))
-                    >> ';';
+                    >> out_of_range_e(eps_p(bind(&out_of_range)(var(self.timap),var(self.vmap),var(self.current_keywd))==false));
                 values_r
                     = atomic_value_r[values_r.val=construct_<vector<var_t> >(1,arg1)]
                     >> *(',' >> atomic_value_r[values_r.val=bind(&add_value)(values_r.val,arg1)]);

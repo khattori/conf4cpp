@@ -241,7 +241,7 @@ confgen::output_implementation_parser_constructor(ostream& os)
     for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
          iter != itemtypvar_map_.end();
          ++iter) {
-        os << "\t\ttimap[\"" << iter->first << "\"] = " << get_tsetstr(iter->second.first, 1) << ";" << endl;
+        os << "\t\ttimap[\"" << iter->first << "\"] = " << get_tsetstr(iter->second.first, 2) << ";" << endl;
     }
     os << "\t}" << endl;
 }

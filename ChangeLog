@@ -1,5 +1,15 @@
 2008-11-21  Kenta HATTORI  <hattori@bach.tatta.org>
 
+	* conf4cpp-0.0.5 リリース
+
+	* 生成コードのインデントのズレを修正
+
+	* 汎用setter関数の定義を追加a
+
+	* インクルードガードを生成するようにした
+
+	* mutableとmandatoryの順序に関するバグを修正
+
 	* setter関数の戻り値をbool型にし，範囲チェックを追加
 
 2008-11-20  Kenta HATTORI  <hattori@bach.tatta.org>

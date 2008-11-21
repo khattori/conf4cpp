@@ -19,6 +19,7 @@ namespace conf4cpp
 	    parse_config(fname);
 	}
 	virtual ~base_config();
+        bool set(const string& itemdef);
 
     protected:
         derived_config_parser_T* p;
@@ -36,6 +37,7 @@ namespace conf4cpp
 	    position_iterator_t end;
 	    begin.set_tabchars(8);
 	    try {
+		p->init();
 		parse_info<position_iterator_t> pinfo = parse(begin, end, *p, eol_p|space_p|comment_p("#"));
 		if (!pinfo.full) throw error("parse error", pinfo.stop.get_position().line);
 	    } catch (boost::spirit::parser_error<string,position_iterator_t>& e) {
@@ -45,6 +47,17 @@ namespace conf4cpp
 		if (p->vmap.find(p->reqs[i]) == p->vmap.end()) throw error("item undefined", p->reqs[i]);
 	    }
 	}
+	bool parse_itemdef(const string& itemdef) {
+	    try {
+		p->init();
+		parse_info<> pinfo = parse(itemdef.c_str(), *p, eol_p|space_p);
+		if (!pinfo.full) return false;
+	    } catch (boost::spirit::parser_error<string>& e) {
+		return false;
+	    }
+            return true;
+	}
+
     };
 }
 

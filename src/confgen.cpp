@@ -171,7 +171,10 @@ confgen::output_implementation(ostream& os)
     output_implementation_constvals(os);
     output_implementation_parser_constructor(os);
     os << "};" << endl;
-    os << "namespace conf4cpp { template<> base_config<" << conf_name_ << "_parser>::~base_config() { delete p; } }" << endl;
+    os << "namespace conf4cpp {" << endl
+       << "\ttemplate<> base_config<" << conf_name_ << "_parser>::~base_config() { delete p; }" << endl
+       << "\ttemplate<> bool base_config<" << conf_name_ << "_parser>::set(const string& itemdef) { return parse_itemdef(itemdef.c_str()); }" << endl
+       << "}" << endl;
     output_implementation_config_constructor(os);
     output_implementation_config_accessors(os);
     output_implementation_config_enum2str(os);

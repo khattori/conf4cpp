@@ -106,6 +106,8 @@ namespace conf4cpp
         mutable tyinfo_map_t timap;
         mutable value_map_t vmap;
         vector<string> reqs;
+
+	void init() { vmap.clear(); defined_symbols.clear(); }
     };
 
 }

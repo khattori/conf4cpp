@@ -292,14 +292,19 @@ confgen::output_implementation_config_constructor(ostream& os)
 void
 confgen::output_implementation_config_accessors(ostream& os)
 {
-    os << "\t// definitions of accessors" << endl;
+    os << "// definitions of accessors" << endl;
     for (map<string,pair<type_t,var_t> >::const_iterator iter = itemtypvar_map_.begin();
          iter != itemtypvar_map_.end();
          ++iter) {
-        if (!itemcon_map_.find(iter->first)->second)
-            os << "\tbool " << conf_name_ << "::set_" << iter->first << "(const " << get_typestr(iter->second.first) << "& v) { if (range_check(p->timap[\""
-               << iter->first << "\"], v)) { " 
-               << iter->first << "_ = v; return true; } else return false; }" << endl;
+        if (!itemcon_map_.find(iter->first)->second) {
+	    type_t t = iter->second.first;
+            os << "bool " << conf_name_ << "::set_" << iter->first << "(const " << get_typestr(t) << "& v) { ";
+	    if (is_atomic_type(t) && boost::get<ti_atomic_t>(t).c) {
+                os << "if (range_check(p->timap[\"" << iter->first << "\"], v)) { " << iter->first << "_ = v; return true; } else return false; }" << endl;
+	    } else {
+                os << iter->first << "_ = v; return true; }" << endl;
+	    }
+	}
     }
 }
 

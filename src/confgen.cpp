@@ -171,11 +171,11 @@ confgen::output_implementation(ostream& os)
     output_implementation_constvals(os);
     output_implementation_parser_constructor(os);
     os << "};" << endl;
+    os << "namespace conf4cpp { template<> base_config<" << conf_name_ << "_parser>::~base_config() { delete p; } }" << endl;
     output_implementation_config_constructor(os);
     output_implementation_config_accessors(os);
     output_implementation_config_enum2str(os);
     output_implementation_config_dump(os);
-    os << "base_config<" << conf_name_ << "_parser>::~base_config() { delete p; }" << endl;
 }
 void
 confgen::output_implementation_keywords(ostream& os)

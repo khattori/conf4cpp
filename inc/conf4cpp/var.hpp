@@ -167,14 +167,22 @@ namespace conf4cpp
         mutable struct in6_addr val;
     };
 
+
+    struct variant_val : closure<variant_val, var_t>  { member1 val; };
+
     template<typename T>
-    struct value_parser : public grammar<value_parser>
+    struct value_parser : public grammar<value_parser<T> >
     {
+        static var_t add_value(var_t& v1, const var_t& v2) {
+            vector<var_t> v = var2<vector<var_t> >(v1);
+            v.push_back(v2); return v;
+        }
+
         template <typename ScannerT>
         struct definition
         {
-            typedef rule<ScannerT> rule_t;
-            rule_t top;
+            typedef rule<ScannerT, variant_val::context_t> rule_t;
+            rule_t values_r, atomic_value_r;;
             datetime_parser datetime_r;
             ipv4addr_parser ipv4addr_r;
             ipv6addr_parser ipv6addr_r;
@@ -196,9 +204,10 @@ namespace conf4cpp
                     | ch_p('{')[atomic_value_r.val=construct_<vector<var_t> >()] >> !values_r[atomic_value_r.val=arg1] >> '}'
                     | constvals_p[atomic_value_r.val=arg1];
             }
-            rule_t const& start() const { return top; }
+            rule_t const& start() const { return values_r; }
         };
         mutable var_t val;
+        mutable T constvals_p;
     };
 }
 

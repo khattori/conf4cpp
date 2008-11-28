@@ -213,7 +213,7 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT> new_sym, id_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
         rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
-        value_parser value_p;
+        value_parser<symbols<> > value_p;
 	sym_s sym_p;
 
         definition(confdef_g const& self) {
@@ -249,8 +249,9 @@ struct confdef_g : public grammar<confdef_g>
                     >> !((mandatory_r >> !qualifier_r) | (qualifier_r >> !mandatory_r))
                     >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)][insert_key_a(self.itemcon_map,self.cur_con)]
                     >> ':'
-                    >> texp_r[insert_at_a(self.itemtypvar_map,self.cur_sym)] >>
-                    >> !('=' >> value_p >>) ';';
+                    >> texp_r[insert_at_a(self.itemtypvar_map,self.cur_sym)]
+                    >> !('=' >> value_p) 
+                    >> ';';
 	    enumdef_r
 		= lexeme_d[str_p("enum") >> blank_p] 
                                          >> (( newenum_sym[var(self.cur_sym)=arg1]

@@ -23,15 +23,9 @@ namespace conf4cpp
     typedef map<string, type_t> tyinfo_map_t;
     typedef map<string, var_t> value_map_t;
 
-    struct variant_val : closure<variant_val, var_t>  { member1 val; };
-
     template <typename derived_T>
     struct base_config_parser : public grammar<base_config_parser<derived_T> >
     {
-        static var_t add_value(var_t& v1, const var_t& v2) {
-            vector<var_t> v = var2<vector<var_t> >(v1);
-            v.push_back(v2); return v;
-        }
         static bool item_redefined(set<string>& ss, const string& key) {
             if (ss.find(key) != ss.end()) return true;
             ss.insert(key);
@@ -64,7 +58,7 @@ namespace conf4cpp
             rule<ScannerT> config_r, item_r;
             typename derived_T::keywords keywords_p;
             typename derived_T::constvals constvals_p;
-            value_parser value_p(constvals_p);
+//            value_parser value_p(constvals_p);
             
             definition(base_config_parser const& self) {
                 assertion<string> item_redefined_e("item redefined");
@@ -81,7 +75,7 @@ namespace conf4cpp
                     = keywords_p[var(self.current_keywd)=arg1]
                     >> item_redefined_e(eps_p(bind(&item_redefined)(var(self.defined_symbols),var(self.current_keywd))==false))
                     >> '='
-                    >> values_p[insert_at_a(self.vmap,self.current_keywd)]
+//                    >> value_p[insert_at_a(self.vmap,self.current_keywd)]
                     >> type_mismatch_e(eps_p(bind(&type_mismatch)(var(self.timap),var(self.vmap),var(self.current_keywd))==false))
                     >> out_of_range_e(eps_p(bind(&out_of_range)(var(self.timap),var(self.vmap),var(self.current_keywd))==false));
             }

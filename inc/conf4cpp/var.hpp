@@ -167,6 +167,7 @@ namespace conf4cpp
         mutable struct in6_addr val;
     };
 
+    template<typename T>
     struct value_parser : public grammar<value_parser>
     {
         template <typename ScannerT>
@@ -179,7 +180,10 @@ namespace conf4cpp
             ipv6addr_parser ipv6addr_r;
 
             definition(value_parser const& self) {
-                top
+                values_r
+                    = atomic_value_r[values_r.val=construct_<vector<var_t> >(1,arg1)]
+                    >> *(',' >> atomic_value_r[values_r.val=bind(&add_value)(values_r.val,arg1)]);
+                atomic_value_r
                     = lexeme_d[((str_p("0x")|"0X") >> hex_p[var(self.val)=arg1])]
                     | datetime_r[var(self.val)=var(datetime_r.val)]
                     | ipv4addr_r[var(self.val)=var(ipv4addr_r.val)]
@@ -188,7 +192,9 @@ namespace conf4cpp
                     | uint_p[var(self.val)=arg1]
                     | int_p[var(self.val)=arg1]
                     | str_p("true")[var(self.val)=true] | str_p("false")[var(self.val)=false]
-                    | confix_p('"', (*c_escape_ch_p)[var(self.val)=construct_<string>(arg1,arg2)], '"');
+                    | confix_p('"', (*c_escape_ch_p)[var(self.val)=construct_<string>(arg1,arg2)], '"')
+                    | ch_p('{')[atomic_value_r.val=construct_<vector<var_t> >()] >> !values_r[atomic_value_r.val=arg1] >> '}'
+                    | constvals_p[atomic_value_r.val=arg1];
             }
             rule_t const& start() const { return top; }
         };

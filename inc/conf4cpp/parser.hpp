@@ -62,11 +62,9 @@ namespace conf4cpp
         template <typename ScannerT> struct definition
         {
             rule<ScannerT> config_r, item_r;
-            rule<ScannerT, variant_val::context_t> values_r, atomic_value_r;
-            symbols<> sym_p;
-            value_parser value_p;
             typename derived_T::keywords keywords_p;
             typename derived_T::constvals constvals_p;
+            value_parser value_p(constvals_p);
             
             definition(base_config_parser const& self) {
                 assertion<string> item_redefined_e("item redefined");
@@ -83,18 +81,9 @@ namespace conf4cpp
                     = keywords_p[var(self.current_keywd)=arg1]
                     >> item_redefined_e(eps_p(bind(&item_redefined)(var(self.defined_symbols),var(self.current_keywd))==false))
                     >> '='
-                    >> values_r[insert_at_a(self.vmap,self.current_keywd)]
+                    >> values_p[insert_at_a(self.vmap,self.current_keywd)]
                     >> type_mismatch_e(eps_p(bind(&type_mismatch)(var(self.timap),var(self.vmap),var(self.current_keywd))==false))
                     >> out_of_range_e(eps_p(bind(&out_of_range)(var(self.timap),var(self.vmap),var(self.current_keywd))==false));
-                values_r
-                    = atomic_value_r[values_r.val=construct_<vector<var_t> >(1,arg1)]
-                    >> *(',' >> atomic_value_r[values_r.val=bind(&add_value)(values_r.val,arg1)]);
-                atomic_value_r
-                    = value_p[atomic_value_r.val=var(value_p.val)]
-                    | ch_p('{')[atomic_value_r.val=construct_<vector<var_t> >()]
-                        >> !values_r[atomic_value_r.val=arg1] >> '}'
-                    //	| '{' >> *item_r >> '}'
-                    | constvals_p[atomic_value_r.val=arg1];
             }
 
             rule<ScannerT> const& start() const { return config_r; }

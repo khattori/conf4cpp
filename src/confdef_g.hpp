@@ -249,7 +249,8 @@ struct confdef_g : public grammar<confdef_g>
                     >> !((mandatory_r >> !qualifier_r) | (qualifier_r >> !mandatory_r))
                     >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)][insert_key_a(self.itemcon_map,self.cur_con)]
                     >> ':'
-                    >> texp_r[insert_at_a(self.itemtypvar_map,self.cur_sym)] >> ';';
+                    >> texp_r[insert_at_a(self.itemtypvar_map,self.cur_sym)] >>
+                    >> !('=' >> value_p >>) ';';
 	    enumdef_r
 		= lexeme_d[str_p("enum") >> blank_p] 
                                          >> (( newenum_sym[var(self.cur_sym)=arg1]
@@ -262,7 +263,7 @@ struct confdef_g : public grammar<confdef_g>
             //
             // <compound_type> ::= <postfix_type> (, <postfix_type>)*
             // <postfix_type>  ::= list ([ <uint> ])? < <compound_type> >
-            //                   | <atomic_type> (< <constraints> >)?
+            //                   | <atomic_type> [< <constraints> >]?
             // <atomic_type>   ::= <tid> | bool | int | real | string
             //
             texp_r
@@ -281,26 +282,12 @@ struct confdef_g : public grammar<confdef_g>
 		= sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[var(self.cur_atyp)=bind(&get_atom)(var(self.cur_type.second))]
                     >> !('[' >> constraints_r[var(self.cur_atyp)=construct_<ti_atomic_t>(var(self.cur_atyp.t),arg1)]
-                         >> (eps_p(bind(&chk_rantype)(var(self.cur_atyp))) | invalid_range(nothing_p))
-                         >> ']')
+                         >> (eps_p(bind(&chk_rantype)(var(self.cur_atyp))) | invalid_range(nothing_p)) >> ']')
                     >> eps_p
                          [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_atyp),bind(&def_value)(var(self.cur_atyp)))]
-                    >> !( '('
-                          >> ( value_p[var(self.cur_val)=var(value_p.val)][atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_atyp),var(value_p.val))] |
-                               ( sym_p[var(self.cur_type2)=arg1] >> eps_p(var(self.cur_type2.first)==SYM_ELEM) >> type_mismatch(nothing_p) ) )
-                          >> (eps_p(bind(&chk_defval)(var(self.cur_atyp),var(self.cur_val))) | type_mismatch(nothing_p))
-                          >> (eps_p(bind(&chk_defran)(var(self.cur_atyp),var(self.cur_val))) | defval_outofrange(nothing_p))
-                          >> ')' )
 		| sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_ENUM)
-                              [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
-                    >> !( '('
-                          >> ( ( sym_p[var(self.cur_type2)=arg1]
-                                 >> eps_p(var(self.cur_type2.first)==SYM_ELEM)
-                                 >> (eps_p(bind(&chk_enumelem)(var(self.cur_type.second),var(self.cur_type2.second))) | type_mismatch(nothing_p)) )
-                                       [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),construct_<string>(arg1,arg2))] |
-                               ( value_p >> type_mismatch(nothing_p) ) )
-                          >> ')' )
+                         [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
 		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
 
 	    constraints_r

@@ -74,7 +74,7 @@ namespace conf4cpp
 	return "???";
     }
 
-    template<typename T> const T& var2(const var_t &v) { return boost::get<T>(v); }
+//    template<typename T> const T& var2(const var_t &v) { return boost::get<T>(v); }
 
     inline struct in_addr to_in_addr(in_addr_t n) { struct in_addr addr = {n}; return addr; }
     inline struct in6_addr to_in6_addr(uint8_t n1, uint8_t n2, uint8_t n3, uint8_t n4,
@@ -102,7 +102,6 @@ namespace conf4cpp
         if (p == NULL || *p != '\0') throw_(first, string("invalid time format"));
         return ret;
     }
-
     struct datetime_parser : public grammar<datetime_parser>
     {
         template <typename ScannerT>
@@ -167,44 +166,47 @@ namespace conf4cpp
         mutable struct in6_addr val;
     };
 
-
     struct variant_val : closure<variant_val, var_t>  { member1 val; };
 
     template<typename T>
     struct value_parser : public grammar<value_parser<T> >
     {
-        static var_t add_value(var_t& v1, const var_t& v2) {
-            vector<var_t> v = var2<vector<var_t> >(v1);
-            v.push_back(v2); return v;
+        static void add_value(var_t& v1, const var_t& v2) {
+            vector<var_t> v = boost::get<vector<var_t> >(v1);
+            v.push_back(v2);
         }
-
+        value_parser(T constvals) : constvals_p(constvals) {}
+        value_parser() {}
         template <typename ScannerT>
         struct definition
         {
-            typedef rule<ScannerT, variant_val::context_t> rule_t;
-            rule_t values_r, atomic_value_r;;
+            typedef rule<ScannerT> rule_t;
+            rule_t top;
+            rule<ScannerT, variant_val::context_t> values_r, atomic_value_r;
             datetime_parser datetime_r;
             ipv4addr_parser ipv4addr_r;
             ipv6addr_parser ipv6addr_r;
 
             definition(value_parser const& self) {
+                top
+                    = values_r[var(self.val)=arg1];
                 values_r
                     = atomic_value_r[values_r.val=construct_<vector<var_t> >(1,arg1)]
-                    >> *(',' >> atomic_value_r[values_r.val=bind(&add_value)(values_r.val,arg1)]);
+                    >> *(',' >> atomic_value_r[bind(&add_value)(values_r.val,arg1)]);
                 atomic_value_r
-                    = lexeme_d[((str_p("0x")|"0X") >> hex_p[var(self.val)=arg1])]
-                    | datetime_r[var(self.val)=var(datetime_r.val)]
-                    | ipv4addr_r[var(self.val)=var(ipv4addr_r.val)]
-                    | ipv6addr_r[var(self.val)=var(ipv6addr_r.val)]
-                    | strict_real_p[var(self.val)=arg1]
-                    | uint_p[var(self.val)=arg1]
-                    | int_p[var(self.val)=arg1]
-                    | str_p("true")[var(self.val)=true] | str_p("false")[var(self.val)=false]
-                    | confix_p('"', (*c_escape_ch_p)[var(self.val)=construct_<string>(arg1,arg2)], '"')
+                    = lexeme_d[((str_p("0x")|"0X") >> hex_p[atomic_value_r.val=arg1])]
+                    | datetime_r[atomic_value_r.val=var(datetime_r.val)]
+                    | ipv4addr_r[atomic_value_r.val=var(ipv4addr_r.val)]
+                    | ipv6addr_r[atomic_value_r.val=var(ipv6addr_r.val)]
+                    | strict_real_p[atomic_value_r.val=arg1]
+                    | uint_p[atomic_value_r.val=arg1]
+                    | int_p[atomic_value_r.val=arg1]
+                    | str_p("true")[atomic_value_r.val=true] | str_p("false")[atomic_value_r.val=false]
+                    | confix_p('"', (*c_escape_ch_p)[atomic_value_r.val=construct_<string>(arg1,arg2)], '"')
                     | ch_p('{')[atomic_value_r.val=construct_<vector<var_t> >()] >> !values_r[atomic_value_r.val=arg1] >> '}'
-                    | constvals_p[atomic_value_r.val=arg1];
+                    | self.constvals_p[atomic_value_r.val=arg1];
             }
-            rule_t const& start() const { return values_r; }
+            rule_t const& start() const { return top; }
         };
         mutable var_t val;
         mutable T constvals_p;

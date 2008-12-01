@@ -79,13 +79,13 @@ namespace conf4cpp
 	}
 	bool operator() (ti_enum_t te) const {
 	    if (!is_pair(v_)) return false;
-	    pair<string,int> p = var2<pair<string,int> >(v_);
+	    pair<string,int> p = boost::get<pair<string,int> >(v_);
 	    if (p.first != te.eid) return false;
 	    return true;
 	}
 	bool operator() (pair<unsigned int, type_t> tp) const {
 	    if (!is_vector(v_)) return false;
-	    vector<var_t> vec = var2<vector<var_t> >(v_);
+	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
 	    if (tp.first > 0 && tp.first != vec.size()) return false;
 	    for (unsigned int i = 0; i < vec.size(); i++) {
 		if (!apply_visitor(type_checker(vec[i]), tp.second)) return false;
@@ -94,7 +94,7 @@ namespace conf4cpp
 	}
 	bool operator() (vector<type_t> tv) const {
 	    if (!is_vector(v_)) return false;
-	    vector<var_t> vec = var2<vector<var_t> >(v_);
+	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
 	    if (vec.size() != tv.size()) return false;
 	    for (unsigned int i = 0; i < tv.size(); i++) {
 		if (!apply_visitor(type_checker(vec[i]), tv[i])) return false;
@@ -134,14 +134,14 @@ namespace conf4cpp
 	}
 	bool operator() (ti_enum_t te) const { return true; }
 	bool operator() (pair<unsigned int, type_t> tp) const {
-	    vector<var_t> vec = var2<vector<var_t> >(v_);
+	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
 	    for (unsigned int i = 0; i < vec.size(); i++) {
 		if (!apply_visitor(range_checker(vec[i]), tp.second)) return false;
 	    }
 	    return true;
 	}
 	bool operator() (vector<type_t> tv) const {
-	    vector<var_t> vec = var2<vector<var_t> >(v_);
+	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
 	    for (unsigned int i = 0; i < tv.size(); i++) {
 		if (!apply_visitor(range_checker(vec[i]), tv[i])) return false;
 	    }

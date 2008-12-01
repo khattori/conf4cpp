@@ -25,7 +25,8 @@ class confgen
 public:
     confgen(confdef_g& g)
         : conf_name_(g.conf_name),
-          itemtypvar_map_(g.itemtypvar_map),
+          itemtyp_map_(g.itemtyp_map),
+          itemdef_map_(g.itemdef_map),
           itemreq_map_(g.itemreq_map),
           itemcon_map_(g.itemcon_map),
           enumelem_map_(g.enumelem_map) {}
@@ -179,20 +180,20 @@ private:
 
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
-            case TI_BOOL:     return var2<bool>(dv) ? "true" : "false";
-            case TI_INT:      if (is_uint(dv)) return boost::lexical_cast<string>(var2<uint>(dv)); else return boost::lexical_cast<string>(var2<int>(dv));
-            case TI_UINT:     return boost::lexical_cast<string>(var2<unsigned int>(dv)) + "U";
-            case TI_DOUBLE:   return boost::lexical_cast<string>(var2<double>(dv));
-            case TI_STRING:   return "\"" + var2<string>(dv) + "\"";
+            case TI_BOOL:     return boost::get<bool>(dv) ? "true" : "false";
+            case TI_INT:      if (is_uint(dv)) return boost::lexical_cast<string>(boost::get<uint>(dv)); else return boost::lexical_cast<string>(boost::get<int>(dv));
+            case TI_UINT:     return boost::lexical_cast<string>(boost::get<unsigned int>(dv)) + "U";
+            case TI_DOUBLE:   return boost::lexical_cast<string>(boost::get<double>(dv));
+            case TI_STRING:   return "\"" + boost::get<string>(dv) + "\"";
             case TI_TIME: {
-                struct tm t = var2<struct tm>(dv);
+                struct tm t = boost::get<struct tm>(dv);
                 string ret("*localtime((t_=");
                 ret += boost::lexical_cast<string>(mktime(&t)) + ",&t_))";
                 return ret;
             }
-            case TI_IPV4ADDR: return "to_in_addr("+ boost::lexical_cast<string>(var2<struct in_addr>(dv).s_addr) + ")";
+            case TI_IPV4ADDR: return "to_in_addr("+ boost::lexical_cast<string>(boost::get<struct in_addr>(dv).s_addr) + ")";
             case TI_IPV6ADDR: {
-                struct in6_addr addr = var2<struct in6_addr>(dv);
+                struct in6_addr addr = boost::get<struct in6_addr>(dv);
                 unsigned int i;
                 string ret("to_in6_addr(");
                 for (i = 0; i < sizeof(addr.s6_addr)-1; i++) {
@@ -210,7 +211,7 @@ private:
 		if (is_int(dv)) {
                     return te.eid + "(0)";
                 } 
-                return var2<string>(dv); 
+                return boost::get<string>(dv); 
         }
         string operator() (pair<unsigned int, type_t> tp) const {
             if (tp.first == 0) {
@@ -317,7 +318,8 @@ private:
     void output_implementation_config_dump(ostream& os);
 
     const string conf_name_;
-    const map<string, pair<type_t,var_t> > itemtypvar_map_;
+    const map<string, type_t> itemtyp_map_;
+    const map<string, var_t> itemdef_map_;
     const map<string, bool> itemreq_map_, itemcon_map_;
     const map<string, vector<string> > enumelem_map_;
 };

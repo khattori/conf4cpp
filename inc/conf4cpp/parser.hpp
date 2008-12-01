@@ -32,7 +32,7 @@ namespace conf4cpp
             return false;
         }
         static bool type_mismatch(tyinfo_map_t& tm, value_map_t& vm, const string& key) {
-            vector<var_t> vec = var2<vector<var_t> >(vm[key]);
+            vector<var_t> vec = boost::get<vector<var_t> >(vm[key]);
             type_t typ = tm[key];
 
             if (is_prim_type(typ)) {

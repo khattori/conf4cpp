@@ -22,9 +22,9 @@ using namespace conf4cpp;
 
 struct confdef_g : public grammar<confdef_g>
 {
-    struct typvar_val : closure<typvar_val, pair<type_t,var_t> >{ member1 val; };
-    struct typvar_uint_val : closure<typvar_uint_val, pair<type_t,var_t>, unsigned int> { member1 val; member2 len; };
-    struct typvars_val : closure<typvars_val, vector<pair<type_t,var_t> > > { member1 val; };
+    struct type_val : closure<type_val, type_t> { member1 val; };
+    struct typs_val : closure<typs_val, vector<type_t> > { member1 val; };
+    struct typuint_val : closure<typuint_val, type_t, unsigned int> { member1 val; member2 len; };
     struct pairvar_val : closure<pairvar_val, pair<var_t,var_t> >{ member1 val; };
     struct uint_val   : closure<uint_val, unsigned int>      { member1 val; };
     struct string_val : closure<string_val, string>          { member1 val; };
@@ -158,29 +158,8 @@ struct confdef_g : public grammar<confdef_g>
         }
     }
 
-    // (uint,pair<type_t,var_t>) -> pair<pair<int,type_t>,var_t>
-    static pair<type_t,var_t> make_typvar(unsigned int l, const pair<type_t,var_t>& typvar) {
-        return make_pair(make_pair(l,typvar.first),typvar.second);
-    }
-    // vector<pair<t,v>> -> pair<t,v>
-    static pair<type_t,var_t> split_typvars(const vector<pair<type_t,var_t> >& typvars) {
-        vector<type_t> typs;
-        vector<var_t>  vars;
-        for (vector<pair<type_t,var_t> >::const_iterator iter = typvars.begin(); iter != typvars.end(); ++iter) {
-            typs.push_back(iter->first);
-            vars.push_back(iter->second);
-        }
-        return make_pair(typs,vars);
-    }
-    struct strip_typvar
-    {
-	typedef pair<type_t,var_t> result_type;
-	result_type operator()(const vector<pair<type_t,var_t> >& tvs) {
-            if (tvs.size() == 1) return tvs.front();
-            return split_typvars(tvs);
-	}
-    };
-    static void add_typvar(vector<pair<type_t,var_t> >& tvs, const pair<type_t,var_t>& tv) { tvs.push_back(tv); }
+    static type_t strip_type(const vector<type_t>& typs) { if (typs.size() == 1) return typs.front(); return typs; }
+    static void add_type(vector<type_t>& typs, const type_t& ty) { typs.push_back(ty); }
     static var_t def_value(const type_t& ty) {
         if (is_atomic_type(ty)) {
             ti_atomic_t ta = boost::get<ti_atomic_t>(ty);
@@ -204,9 +183,9 @@ struct confdef_g : public grammar<confdef_g>
     template <typename ScannerT> struct definition
     {
 	rule<ScannerT> config_r, spec_r, itemdef_r, enumdef_r;
-	rule<ScannerT,typvar_val::context_t> texp_r, atomic_texp_r;
-        rule<ScannerT,typvar_uint_val::context_t> postfix_texp_r ;
-	rule<ScannerT,typvars_val::context_t> compound_texp_r;
+	rule<ScannerT,type_val::context_t> texp_r, atomic_texp_r;
+        rule<ScannerT,typs_val::context_t> compound_texp_r;
+        rule<ScannerT,typuint_val::context_t> postfix_texp_r ;
         rule<ScannerT,uint_val::context_t> list_type_r;
         rule<ScannerT,pairvar_val::context_t> constraints_r;
 	rule<ScannerT> mandatory_r, qualifier_r;
@@ -249,8 +228,8 @@ struct confdef_g : public grammar<confdef_g>
                     >> !((mandatory_r >> !qualifier_r) | (qualifier_r >> !mandatory_r))
                     >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)][insert_key_a(self.itemcon_map,self.cur_con)]
                     >> ':'
-                    >> texp_r[insert_at_a(self.itemtypvar_map,self.cur_sym)]
-                    >> !('=' >> value_p) 
+                    >> texp_r[insert_at_a(self.itemtyp_map,self.cur_sym)]
+                    >> !('=' >> value_p[insert_at_a(self.itemdef_map,self.cur_sym,value_p.val)])
                     >> ';';
 	    enumdef_r
 		= lexeme_d[str_p("enum") >> blank_p] 
@@ -268,13 +247,13 @@ struct confdef_g : public grammar<confdef_g>
             // <atomic_type>   ::= <tid> | bool | int | real | string
             //
             texp_r
-                = compound_texp_r[texp_r.val=bind(strip_typvar())(arg1)];
+                = compound_texp_r[texp_r.val=bind(&strip_type)(arg1)];
 	    compound_texp_r
-		= postfix_texp_r[compound_texp_r.val=construct_<vector<pair<type_t,var_t> > >(1,arg1)]
-                    >> *(',' >> postfix_texp_r[bind(&add_typvar)(compound_texp_r.val,arg1)] );
+		= postfix_texp_r[compound_texp_r.val=construct_<vector<type_t> >(1,arg1)]
+                    >> *(',' >> postfix_texp_r[bind(&add_type)(compound_texp_r.val,arg1)] );
 	    postfix_texp_r
 		= list_type_r[postfix_texp_r.len=arg1]
-                    >> '<' >> texp_r[postfix_texp_r.val=bind(&make_typvar)(postfix_texp_r.len,arg1)] >> '>'
+                    >> '<' >> texp_r[postfix_texp_r.val=bind(&make_pair<int,type_t>)(postfix_texp_r.len,arg1)] >> '>'
 //                    >> !( '(' >> uint_p >> ')' )
 	        | atomic_texp_r[postfix_texp_r.val=arg1];
 	    list_type_r
@@ -284,12 +263,10 @@ struct confdef_g : public grammar<confdef_g>
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[var(self.cur_atyp)=bind(&get_atom)(var(self.cur_type.second))]
                     >> !('[' >> constraints_r[var(self.cur_atyp)=construct_<ti_atomic_t>(var(self.cur_atyp.t),arg1)]
                          >> (eps_p(bind(&chk_rantype)(var(self.cur_atyp))) | invalid_range(nothing_p)) >> ']')
-                    >> eps_p
-                         [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_atyp),bind(&def_value)(var(self.cur_atyp)))]
+                    >> eps_p[atomic_texp_r.val=var(self.cur_atyp)]
 		| sym_p[var(self.cur_type)=arg1]
-                    >> eps_p(var(self.cur_type.first)==SYM_ENUM)
-                         [atomic_texp_r.val=construct_<pair<type_t,var_t> >(var(self.cur_type.second),bind(&def_value)(var(self.cur_type.second)))]
-		| '(' >> compound_texp_r[atomic_texp_r.val=bind(&split_typvars)(arg1)] >> ')';
+                    >> eps_p(var(self.cur_type.first)==SYM_ENUM)[atomic_texp_r.val=var(self.cur_type.second)]
+		| '(' >> compound_texp_r[atomic_texp_r.val=arg1] >> ')';
 
 	    constraints_r
                 = eps_p[var(self.cur_range)=construct_<pair<var_t,var_t> >(false,false)] >>
@@ -312,7 +289,10 @@ struct confdef_g : public grammar<confdef_g>
             newenum_sym
                 = new_sym[add_enumsym(sym_p)][newenum_sym.val=construct_<string>(arg1,arg2)];
             newelem_sym
-                = new_sym[bind(add_elemsym(sym_p))(var(self.cur_sym),arg1,arg2)][newelem_sym.val=construct_<string>(arg1,arg2)];
+                = new_sym[bind(add_elemsym(sym_p))(var(self.cur_sym),arg1,arg2)]
+                [newelem_sym.val=construct_<string>(arg1,arg2)]
+                [value_p.constvals_p.add]
+                ;
 	    elemseq_r
 		= newelem_sym[var(self.elem_list)=construct_<vector<string> >(1,arg1)]
                     >> *(',' >> newelem_sym[push_back_a(self.elem_list)])
@@ -328,7 +308,8 @@ struct confdef_g : public grammar<confdef_g>
     mutable pair<var_t, var_t> cur_range;
     mutable var_t cur_val;
     mutable vector<string> elem_list;
-    mutable map<string, pair<type_t,var_t> > itemtypvar_map;
+    mutable map<string, type_t> itemtyp_map;
+    mutable map<string, var_t> itemdef_map;
     mutable map<string, vector<string> > enumelem_map;
     mutable map<string, bool> itemreq_map, itemcon_map;
     mutable string conf_name;

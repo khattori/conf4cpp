@@ -3,7 +3,7 @@ SRCS	= \
 	conf4cpp.cpp \
 	confgen.cpp
 
-CXXFLAGS= -Wall
+CXXFLAGS= -Wall -g
 #CPPFLAGS= -I../inc
 CPPFLAGS= -I/usr/include/boost-1_33_1 -I../inc
 

@@ -146,6 +146,10 @@ int main(int argc, char* args[])
     // const項目はsetできない
     assert(conf.set("ipv4_value=1.2.3.4")==false);
     assert(conf.ipv4_value().s_addr==0);
+    // default値のチェック
+    assert(conf.int_ranval4()==3);
+    assert(conf.int_ranval5()==0);
+    assert(conf.int_ranval6()==-10);
 
     conf.dump(cout);
 

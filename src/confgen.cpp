@@ -104,6 +104,7 @@ confgen::output_interface(ostream& os)
     }
 
     os << "private:" << endl;
+    output_interface_initializers(os);
     output_interface_setters(os);
     output_interface_members(os);
 
@@ -136,6 +137,17 @@ confgen::output_interface_accessors(ostream& os)
         os << "\tconst " << get_typestr(iter->second) << "& " << iter->first << "() const { return " << iter->first << "_; }" << endl;
         if (!itemreq_map_.find(iter->first)->second) os << "\tbool has_" << iter->first << "() const { return has_" << iter->first << "_; }" << endl;
         if (!itemcon_map_.find(iter->first)->second) os << "\tbool set_" << iter->first << "(const " << get_typestr(iter->second) << "& v);" << endl;
+    }
+}
+
+void
+confgen::output_interface_initializers(ostream& os)
+{
+    os << "\t// definitions of private initializers" << endl;
+    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+        iter != itemtyp_map_.end();
+        ++iter) {
+        if (!itemreq_map_.find(iter->first)->second) os << "\tvoid init_" << iter->first << "_();" << endl;
     }
 }
 
@@ -190,6 +202,7 @@ confgen::output_implementation(ostream& os)
        << "}" << endl;
     output_implementation_config_constructor(os);
     output_implementation_config_accessors(os);
+    output_implementation_config_initializers(os);
     output_implementation_config_setters(os);
     output_implementation_config_enum2str(os);
     output_implementation_config_dump(os);
@@ -290,7 +303,7 @@ confgen::output_implementation_config_constructor(ostream& os)
             os << "\t\tset_" << iter->first << "_(p->vmap[\"" << iter->first << "\"]);" << endl
                << "\t} else {" << endl
                << "\t\thas_" << iter->first << "_ = false;" << endl
-               << "\t\t" << iter->first << "_ = " << get_defvstr(iter->second, itemdef_map_.find(iter->first)->second) << ";" << endl
+               << "\t\tinit_" << iter->first << "_();" << endl
                << "\t}" << endl;
         } else {
             // 必須項目
@@ -332,6 +345,23 @@ confgen::output_implementation_config_accessors(ostream& os)
     }
     os << "\treturn true;" << endl;
     os << "}" << endl;
+}
+
+void
+confgen::output_implementation_config_initializers(ostream& os)
+{
+    os << "// definitions of private initializers" << endl;
+    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+         iter != itemtyp_map_.end();
+         ++iter) {
+        if (!itemreq_map_.find(iter->first)->second) {
+            map<string, var_t>::const_iterator di = itemdef_map_.find(iter->first);
+            os << "void " << conf_name_ << "::init_" << iter->first << "_() {" << endl;
+            os << "\ttime_t t_ __attribute__((unused));" << endl;
+            os << "\t" << get_defvstr(iter->second, iter->first+"_", di == itemdef_map_.end() ? boost::spirit::nil_t() : di->second, 2) << endl;
+            os << "}" << endl;
+        }
+    }
 }
 
 void

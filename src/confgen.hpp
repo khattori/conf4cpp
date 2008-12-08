@@ -122,14 +122,14 @@ private:
 
         string operator() (ti_atomic_t ta) const {
             switch (ta) {
-            case TI_BOOL:     return lhs + " = var2<bool>(" + rhs + ");"; 
-            case TI_INT:      return lhs + " = is_int(" + rhs + ") ? var2<int>(" + rhs + ") : var2<unsigned int>(" + rhs + ");";
-            case TI_UINT:     return lhs + " = var2<unsigned int>(" + rhs + ");";
-            case TI_DOUBLE:   return lhs + " = var2<double>(" + rhs + ");";
-            case TI_STRING:   return lhs + " = var2<string>(" + rhs + ");";
-            case TI_TIME:     return lhs + " = var2<struct tm>(" + rhs + ");";
-            case TI_IPV4ADDR: return lhs + " = var2<struct in_addr>(" + rhs + ");";
-            case TI_IPV6ADDR: return lhs + " = var2<struct in6_addr>(" + rhs + ");";
+            case TI_BOOL:     return lhs + " = boost::get<bool>(" + rhs + ");"; 
+            case TI_INT:      return lhs + " = is_int(" + rhs + ") ? boost::get<int>(" + rhs + ") : boost::get<unsigned int>(" + rhs + ");";
+            case TI_UINT:     return lhs + " = boost::get<unsigned int>(" + rhs + ");";
+            case TI_DOUBLE:   return lhs + " = boost::get<double>(" + rhs + ");";
+            case TI_STRING:   return lhs + " = boost::get<string>(" + rhs + ");";
+            case TI_TIME:     return lhs + " = boost::get<struct tm>(" + rhs + ");";
+            case TI_IPV4ADDR: return lhs + " = boost::get<struct in_addr>(" + rhs + ");";
+            case TI_IPV6ADDR: return lhs + " = boost::get<struct in6_addr>(" + rhs + ");";
             }
             assert(false);
             return "???";
@@ -138,11 +138,11 @@ private:
             if (eem.find(te.eid) == eem.end()) {
                 assert(false);
             }
-            return lhs + " = " + te.eid + "(var2<pair<string,int> >(" + rhs + ").second);";
+            return lhs + " = " + te.eid + "(boost::get<pair<string,int> >(" + rhs + ").second);";
         }
         string operator() (pair<unsigned int, type_t> tp) const {
 	    string istr = "i"+boost::lexical_cast<string>(lv);
-            string ret("vector<var_t> " + lhs + "v = var2<vector<var_t> >(" + rhs + ");\n" + indent(lv-1));
+            string ret("vector<var_t> " + lhs + "v = boost::get<vector<var_t> >(" + rhs + ");\n" + indent(lv-1));
             ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + lhs + "v.size(); "+istr+"++) {\n" + indent(lv);
             ret += apply_visitor(type_string(),tp.second) + " " + lhs + "iv;\n" + indent(lv);
             ret += apply_visitor(vset_string(eem,lhs+"iv",lhs+"v["+istr+"]",lv+1),tp.second) + "\n" + indent(lv);
@@ -155,8 +155,8 @@ private:
             for (unsigned int i = 0; i < tv.size(); i++) {
                 string tystr = apply_visitor(type_string(), tv[i]);
                 string istr = boost::lexical_cast<string>(i);
-                ret += tystr + " " + lhs + istr + ";\n" + indent(lv-1);
-                ret += apply_visitor(vset_string(eem,lhs+istr,"var2<vector<var_t> >("+rhs+")["+istr+"]",lv),tv[i]) + "\n" + indent(lv-1);
+                ret +=  tystr + " " + lhs + istr + ";\n" + indent(lv-1);
+                ret += apply_visitor(vset_string(eem,lhs+istr,"boost::get<vector<var_t> >("+rhs+")["+istr+"]",lv),tv[i]) + "\n" + indent(lv-1);
             }
             ret += lhs + " = make_tuple(";
             for (unsigned int i = 0; i < tv.size()-1; i++) {
@@ -171,27 +171,46 @@ private:
         unsigned int lv;
     };
 
+    static var_t def_value(const ti_atomic_t& ta) {
+        switch (ta) {
+        case TI_BOOL:   return bool(false);
+        case TI_INT:    if (ta.c) return int(0);
+        case TI_UINT:   return (unsigned int)(0);
+        case TI_DOUBLE: return double(0.0);
+        case TI_STRING: return string("");
+        case TI_TIME: { time_t t = 0; struct tm ret = *localtime(&t); return ret; }
+        case TI_IPV4ADDR: { struct in_addr  ret = {0}; return ret; }
+        case TI_IPV6ADDR: { struct in6_addr ret = {{{0}}}; return ret; }
+        }
+        assert(false);
+        return false; // return dummy value
+    }
+
     //
     // format string for default value setting
     //
     struct defv_string : public boost::static_visitor<string>
     {
-        defv_string(const var_t& dv_) : dv(dv_) {}
+
+        defv_string(const string& lhs_, const var_t& dv_, unsigned int lv_) : lhs(lhs_), dv(dv_), lv(lv_)  {}
 
         string operator() (ti_atomic_t ta) const {
+            if (is_nil(dv)) {
+                dv = def_value(ta);
+            }
             switch (ta) {
-            case TI_BOOL:     return boost::get<bool>(dv) ? "true" : "false";
-            case TI_INT:      if (is_uint(dv)) return boost::lexical_cast<string>(boost::get<uint>(dv)); else return boost::lexical_cast<string>(boost::get<int>(dv));
-            case TI_UINT:     return boost::lexical_cast<string>(boost::get<unsigned int>(dv)) + "U";
-            case TI_DOUBLE:   return boost::lexical_cast<string>(boost::get<double>(dv));
-            case TI_STRING:   return "\"" + boost::get<string>(dv) + "\"";
+            case TI_BOOL:     return lhs + " = " + (boost::get<bool>(dv) ? "true" : "false") + ";";
+            case TI_INT:      return lhs + " = " + (is_uint(dv) ? boost::lexical_cast<string>(boost::get<uint>(dv)) : boost::lexical_cast<string>(boost::get<int>(dv))) + ";";
+            case TI_UINT:     return lhs + " = " + boost::lexical_cast<string>(boost::get<unsigned int>(dv)) + "U;";
+            case TI_DOUBLE:   return lhs + " = " + boost::lexical_cast<string>(boost::get<double>(dv)) + ";";
+            case TI_STRING:   return lhs + " = \"" + boost::get<string>(dv) + "\";";
             case TI_TIME: {
                 struct tm t = boost::get<struct tm>(dv);
                 string ret("*localtime((t_=");
                 ret += boost::lexical_cast<string>(mktime(&t)) + ",&t_))";
-                return ret;
+                return lhs + " = " + ret + ";";
             }
-            case TI_IPV4ADDR: return "to_in_addr("+ boost::lexical_cast<string>(boost::get<struct in_addr>(dv).s_addr) + ")";
+            case TI_IPV4ADDR: return lhs + " = to_in_addr(" + boost::lexical_cast<string>(boost::get<struct in_addr>(dv).s_addr) + ");";
             case TI_IPV6ADDR: {
                 struct in6_addr addr = boost::get<struct in6_addr>(dv);
                 unsigned int i;
@@ -200,36 +219,66 @@ private:
                     ret += boost::lexical_cast<string>(int(addr.s6_addr[i])) + ",";
                 }
                 ret += boost::lexical_cast<string>(int(addr.s6_addr[i])) + ")";
-
-                return ret;
+                return lhs + " = " + ret + ";";
             }
             }
             assert(false);
             return "???";
         }
+
         string operator() (ti_enum_t te) const {
-		if (is_int(dv)) {
-                    return te.eid + "(0)";
-                } 
-                return boost::get<string>(dv); 
+            if (is_nil(dv)) {
+                return lhs + " = " + te.eid + "(0);";
+            } 
+            return lhs + " = " + boost::get<pair<string,int> >(dv).first + "(" + boost::lexical_cast<string>(boost::get<pair<string,int> >(dv).second) + ");"; 
         }
+
         string operator() (pair<unsigned int, type_t> tp) const {
-            if (tp.first == 0) {
-                return string("vector<") + apply_visitor(type_string(),tp.second) + " >()";
+            if (tp.first == 0 && is_nil(dv)) {
+                return lhs + " = vector<" + apply_visitor(type_string(),tp.second) + " >();";
+            }
+
+            string ret(apply_visitor(type_string(),tp.second) + " " + lhs + "iv;\n" + indent(lv));
+            if (is_nil(dv)) {
+                for (unsigned int i = 0; i < tp.first; i++) {
+                    ret += apply_visitor(defv_string(lhs+"iv",dv,lv+1),tp.second) + "\n" + indent(lv-1); 
+                    ret += lhs + ".push_back(" + lhs + "iv);\n";
+                }
             } else {
-                return string("vector<") + apply_visitor(type_string(),tp.second) + " >(" + boost::lexical_cast<string>(tp.first) + "," + apply_visitor(defv_string(dv),tp.second) + ")";
+                vector<var_t> dvv = boost::get<vector<var_t> >(dv);
+                for (unsigned int i = 0; i < dvv.size(); i++) {
+                    ret += apply_visitor(defv_string(lhs+"iv",dvv[i],lv+1),tp.second) + "\n" + indent(lv-1); 
+                    ret += lhs + ".push_back(" + lhs + "iv);\n";
+                } 
             }
-        }
-        string operator() (vector<type_t> tv) const {
-            string ret("make_tuple(");
-            vector<var_t> vec = boost::get<vector<var_t> >(dv);
-            for (unsigned int i = 0; i < tv.size()-1; i++) {
-                ret += apply_visitor(defv_string(vec[i]), tv[i]) + ",";
-            }
-            ret += apply_visitor(defv_string(vec.back()), tv.back()) + ")";
             return ret;
         }
-        const var_t& dv;
+
+        string operator() (vector<type_t> tv) const {
+            string ret;
+            ret += "{\n" + indent(lv-1);
+            for (unsigned int i = 0; i < tv.size(); i++) {
+                string tystr = apply_visitor(type_string(), tv[i]);
+                string istr = boost::lexical_cast<string>(i);
+                ret += tystr + " " + lhs + istr + ";\n" + indent(lv-1);
+                if (is_nil(dv)) {
+                    ret += apply_visitor(defv_string(lhs+istr,dv,lv),tv[i]) + "\n" + indent(lv-1);
+                } else {
+                    ret += apply_visitor(defv_string(lhs+istr,boost::get<vector<var_t> >(dv)[i],lv),tv[i]) + "\n" + indent(lv-1);
+                }
+            }
+            ret += lhs + " = make_tuple(";
+            for (unsigned int i = 0; i < tv.size()-1; i++) {
+                ret += lhs + boost::lexical_cast<string>(i) + ",";
+            }
+            ret += lhs + boost::lexical_cast<string>(tv.size()-1) + ");";
+            ret += "}\n" + indent(lv-1);
+            return ret;
+        }
+
+        const string& lhs;
+        mutable var_t dv;
+        unsigned int lv;        
     };
 
     //
@@ -292,9 +341,9 @@ private:
 
     string get_typestr(const type_t& ty) { return apply_visitor(type_string(), ty); }
     string get_tsetstr(const type_t& ty, unsigned int lv) { return apply_visitor(tset_string(lv), ty); }
-    string get_vsetstr(const type_t& ty, const string& lhs, const string& rhs, unsigned int lv)
-        { return apply_visitor(vset_string(enumelem_map_,lhs,rhs,lv), ty); }
-    string get_defvstr(const type_t& ty, const var_t& dv) { return apply_visitor(defv_string(dv), ty); }
+    string get_vsetstr(const type_t& ty, const string& lhs, const string& rhs, unsigned int lv) { return apply_visitor(vset_string(enumelem_map_,lhs,rhs,lv), ty); }
+    string get_defvstr(const type_t& ty, const string& lhs, const var_t& dv, unsigned int lv) { return apply_visitor(defv_string(lhs,dv,lv), ty); }
+
     string get_dumpstr(const string& kw, const type_t& ty, unsigned int lv) { return apply_visitor(dump_string(kw+"_", lv), ty); }
 
     static string indent(unsigned int lv) {
@@ -306,6 +355,7 @@ private:
 
     void output_interface_enumdefs(ostream& os);
     void output_interface_accessors(ostream& os);
+    void output_interface_initializers(ostream& os);
     void output_interface_setters(ostream& os);
     void output_interface_members(ostream& os);
     void output_implementation_keywords(ostream& os);
@@ -313,6 +363,7 @@ private:
     void output_implementation_parser_constructor(ostream& os);
     void output_implementation_config_constructor(ostream& os);
     void output_implementation_config_accessors(ostream& os);
+    void output_implementation_config_initializers(ostream& os);
     void output_implementation_config_setters(ostream& os);
     void output_implementation_config_enum2str(ostream& os);
     void output_implementation_config_dump(ostream& os);

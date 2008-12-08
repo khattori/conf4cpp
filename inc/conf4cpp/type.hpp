@@ -33,7 +33,7 @@ namespace conf4cpp
         ti_atomic_t() : t(TI_BOOL) {}
         ti_atomic_t(atomic_t t_) : t(t_) {}
         ti_atomic_t(atomic_t t_, pair<var_t,var_t> c_) : t(t_), c(c_) {}
-        operator atomic_t() { return t; }
+        operator atomic_t() const { return t; }
 
         atomic_t t;
         boost::optional<pair<var_t,var_t> >c;

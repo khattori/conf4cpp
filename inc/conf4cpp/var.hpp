@@ -22,6 +22,7 @@ using namespace std;
 namespace conf4cpp
 {
     typedef boost::make_recursive_variant<
+        boost::spirit::nil_t,
 	bool,
 	int,
         unsigned int,
@@ -35,6 +36,7 @@ namespace conf4cpp
     >::type var_t;
 
     enum {
+        IS_NIL,
 	IS_BOOL,
 	IS_INT,
         IS_UINT,
@@ -47,6 +49,7 @@ namespace conf4cpp
 	IS_VECTOR,
     };
 
+    inline bool is_nil      (const var_t& v) { return v.which() == IS_NIL;      }
     inline bool is_bool     (const var_t& v) { return v.which() == IS_BOOL;     }
     inline bool is_int      (const var_t& v) { return v.which() == IS_INT;      }
     inline bool is_uint     (const var_t& v) { return v.which() == IS_UINT;     }
@@ -69,12 +72,11 @@ namespace conf4cpp
         case IS_IPV6ADDR:
 	case IS_PAIR:
 	case IS_VECTOR:
+        case IS_NIL:
 	assert(false);
         }
 	return "???";
     }
-
-//    template<typename T> const T& var2(const var_t &v) { return boost::get<T>(v); }
 
     inline struct in_addr to_in_addr(in_addr_t n) { struct in_addr addr = {n}; return addr; }
     inline struct in6_addr to_in6_addr(uint8_t n1, uint8_t n2, uint8_t n3, uint8_t n4,
@@ -84,7 +86,6 @@ namespace conf4cpp
 	struct in6_addr addr = {{{n1,n2,n3,n4,n5,n6,n7,n8,n9,n10,n11,n12,n13,n14,n15,n16}}};
 	return addr;
     }
-
     using namespace boost::spirit;
     using phoenix::arg1;
     using phoenix::arg2;
@@ -166,16 +167,16 @@ namespace conf4cpp
         mutable struct in6_addr val;
     };
 
+    typedef symbols<pair<string,int> > enum_sym_t;
     struct variant_val : closure<variant_val, var_t>  { member1 val; };
-
-    template<typename T>
-    struct value_parser : public grammar<value_parser<T> >
+    struct value_parser : public grammar<value_parser>
     {
-        static void add_value(var_t& v1, const var_t& v2) {
+        static var_t add_value(var_t& v1, const var_t& v2) {
             vector<var_t> v = boost::get<vector<var_t> >(v1);
             v.push_back(v2);
+            return v;
         }
-        value_parser(T constvals) : constvals_p(constvals) {}
+        value_parser(const enum_sym_t& constvals) : constvals_p(constvals) {}
         value_parser() {}
         template <typename ScannerT>
         struct definition
@@ -192,7 +193,7 @@ namespace conf4cpp
                     = values_r[var(self.val)=arg1];
                 values_r
                     = atomic_value_r[values_r.val=construct_<vector<var_t> >(1,arg1)]
-                    >> *(',' >> atomic_value_r[bind(&add_value)(values_r.val,arg1)]);
+                    >> *(',' >> atomic_value_r[values_r.val=bind(&add_value)(values_r.val,arg1)]);
                 atomic_value_r
                     = lexeme_d[((str_p("0x")|"0X") >> hex_p[atomic_value_r.val=arg1])]
                     | datetime_r[atomic_value_r.val=var(datetime_r.val)]
@@ -209,7 +210,7 @@ namespace conf4cpp
             rule_t const& start() const { return top; }
         };
         mutable var_t val;
-        mutable T constvals_p;
+        mutable enum_sym_t constvals_p;
     };
 }
 

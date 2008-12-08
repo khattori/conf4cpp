@@ -17,7 +17,6 @@
 
 using namespace std;
 using namespace boost::spirit;
-
 using namespace conf4cpp;
 
 struct confdef_g : public grammar<confdef_g>
@@ -77,17 +76,22 @@ struct confdef_g : public grammar<confdef_g>
             sym.add(key.c_str(), make_pair(SYM_ENUM, ti_enum_t(key)));
         }
     };
+    typedef map<string,vector<string> > enum_map_t;
     struct add_elemsym
     {
 	typedef void result_type;
         sym_s& sym;
-        add_elemsym(sym_s &sym_) : sym(sym_) {}
+        enum_sym_t& elemsym;
+        int& num;
+        add_elemsym(sym_s &sym_, enum_sym_t& elemsym_, int &num_) : sym(sym_), elemsym(elemsym_), num(num_) {}
         template<typename IteratorT>
         result_type operator() (const string& en, const IteratorT& first, const IteratorT& last) const {
             string key(first, last);
             sym.add(key.c_str(), make_pair(SYM_ELEM, ti_enum_t(en)));
+            elemsym.add(key.c_str(), make_pair(en, num++));
         }
     };
+
     static bool chk_defval(const ti_atomic_t& ta, const var_t& var) {
         switch (ta.t) {
         case TI_DOUBLE:   return is_double(var);
@@ -192,18 +196,17 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT> new_sym, id_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
         rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
-        value_parser<symbols<> > value_p;
+        value_parser value_p;
 	sym_s sym_p;
 
         definition(confdef_g const& self) {
-            assertion<string> expect_elem("no enum element");
-            assertion<string> rsvwd_redef("reserved word redefined");
-            assertion<string> typnm_redef("type name redefined");
-            assertion<string> symbol_redef("symbol redefined");
-            assertion<string> type_mismatch("type mismatch");
-            assertion<string> invalid_range("invalid range");
-            assertion<string> defval_outofrange("default value is out of range");
-            assertion<string> parse_failed("parser error");
+            assertion<string> expect_elem_e("no enum element");
+            assertion<string> rsvwd_redef_e("reserved word redefined");
+            assertion<string> typnm_redef_e("type name redefined");
+            assertion<string> symbol_redef_e("symbol redefined");
+            assertion<string> invalid_range_e("invalid range");
+            assertion<string> defval_typemismatch_e("default value is type mismatch");
+            assertion<string> parse_failed_e("parser error");
 
             using phoenix::arg1;
 	    using phoenix::arg2;
@@ -229,13 +232,16 @@ struct confdef_g : public grammar<confdef_g>
                     >> newitem_sym[var(self.cur_sym)=arg1][insert_key_a(self.itemreq_map,self.cur_req)][insert_key_a(self.itemcon_map,self.cur_con)]
                     >> ':'
                     >> texp_r[insert_at_a(self.itemtyp_map,self.cur_sym)]
-                    >> !('=' >> value_p[insert_at_a(self.itemdef_map,self.cur_sym,value_p.val)])
+                    >> !('='
+                         >> value_p[insert_at_a(self.itemdef_map,self.cur_sym,value_p.val)]
+                         >> defval_typemismatch_e(eps_p(bind(&type_mismatch)(var(self.itemtyp_map),var(self.itemdef_map),var(self.cur_sym))==false))
+                        )
                     >> ';';
 	    enumdef_r
 		= lexeme_d[str_p("enum") >> blank_p] 
                                          >> (( newenum_sym[var(self.cur_sym)=arg1]
-                                              >> '{' >> expect_elem(elemseq_r[insert_at_a(self.enumelem_map,self.cur_sym)]) >> '}' )
-                                             | parse_failed(nothing_p));
+                                              >> '{' >> expect_elem_e(elemseq_r[insert_at_a(self.enumelem_map,self.cur_sym)]) >> '}' )
+                                             | parse_failed_e(nothing_p));
 	    mandatory_r
 		= lexeme_d[str_p("required") >> blank_p] | lexeme_d[str_p("optional") >> blank_p][var(self.cur_req)=false];
             qualifier_r
@@ -262,7 +268,7 @@ struct confdef_g : public grammar<confdef_g>
 		= sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[var(self.cur_atyp)=bind(&get_atom)(var(self.cur_type.second))]
                     >> !('[' >> constraints_r[var(self.cur_atyp)=construct_<ti_atomic_t>(var(self.cur_atyp.t),arg1)]
-                         >> (eps_p(bind(&chk_rantype)(var(self.cur_atyp))) | invalid_range(nothing_p)) >> ']')
+                         >> (eps_p(bind(&chk_rantype)(var(self.cur_atyp))) | invalid_range_e(nothing_p)) >> ']')
                     >> eps_p[atomic_texp_r.val=var(self.cur_atyp)]
 		| sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_ENUM)[atomic_texp_r.val=var(self.cur_type.second)]
@@ -273,15 +279,15 @@ struct confdef_g : public grammar<confdef_g>
                 !( strict_real_p[var(self.cur_range.first)=arg1] | uint_p[var(self.cur_range.first)=arg1] | int_p[var(self.cur_range.first)=arg1] ) >>
                 '~' >> 
                 !( strict_real_p[var(self.cur_range.second)=arg1] | uint_p[var(self.cur_range.second)=arg1] | int_p[var(self.cur_range.second)=arg1]) >>
-                (eps_p(bind(&chk_range)(var(self.cur_range)))[constraints_r.val=var(self.cur_range)] | invalid_range(nothing_p));
+                (eps_p(bind(&chk_range)(var(self.cur_range)))[constraints_r.val=var(self.cur_range)] | invalid_range_e(nothing_p));
 
 	    id_r
 		= lexeme_d[(alpha_p|'_') >> +(alnum_p|'_')];
             new_sym
                 = (id_r - sym_p) | ( sym_p[var(self.cur_type)=arg1]
-                                     >> ( ( eps_p(var(self.cur_type.first)==SYM_RESERVED) >> rsvwd_redef(nothing_p) ) |
-                                          ( eps_p(var(self.cur_type.first)==SYM_TYPENAME) >> typnm_redef(nothing_p) ) |
-                                          symbol_redef(nothing_p) ) );
+                                     >> ( ( eps_p(var(self.cur_type.first)==SYM_RESERVED) >> rsvwd_redef_e(nothing_p) ) |
+                                          ( eps_p(var(self.cur_type.first)==SYM_TYPENAME) >> typnm_redef_e(nothing_p) ) |
+                                          symbol_redef_e(nothing_p) ) );
             newconf_sym
                 = new_sym[add_sym<SYM_CONFIG>(sym_p)][newconf_sym.val=construct_<string>(arg1,arg2)];
             newitem_sym
@@ -289,12 +295,12 @@ struct confdef_g : public grammar<confdef_g>
             newenum_sym
                 = new_sym[add_enumsym(sym_p)][newenum_sym.val=construct_<string>(arg1,arg2)];
             newelem_sym
-                = new_sym[bind(add_elemsym(sym_p))(var(self.cur_sym),arg1,arg2)]
+                = new_sym[bind(add_elemsym(sym_p,value_p.constvals_p,self.cur_num))(var(self.cur_sym),arg1,arg2)]
                 [newelem_sym.val=construct_<string>(arg1,arg2)]
-                [value_p.constvals_p.add]
                 ;
 	    elemseq_r
-		= newelem_sym[var(self.elem_list)=construct_<vector<string> >(1,arg1)]
+		= eps_p[var(self.cur_num)=0]
+                    >> newelem_sym[var(self.elem_list)=construct_<vector<string> >(1,arg1)]
                     >> *(',' >> newelem_sym[push_back_a(self.elem_list)])
                     >> eps_p[elemseq_r.val=var(self.elem_list)];
         }
@@ -302,15 +308,15 @@ struct confdef_g : public grammar<confdef_g>
         rule<ScannerT> const& start() const { return config_r; }
     };
     mutable string cur_sym;
+    mutable int cur_num;
     mutable bool cur_req, cur_con;
-    mutable pair<symtype_t,type_t> cur_type, cur_type2;
+    mutable pair<symtype_t,type_t> cur_type;
     mutable ti_atomic_t cur_atyp;
     mutable pair<var_t, var_t> cur_range;
-    mutable var_t cur_val;
     mutable vector<string> elem_list;
-    mutable map<string, type_t> itemtyp_map;
-    mutable map<string, var_t> itemdef_map;
-    mutable map<string, vector<string> > enumelem_map;
+    mutable tyinfo_map_t itemtyp_map;
+    mutable value_map_t itemdef_map;
+    mutable enum_map_t enumelem_map;
     mutable map<string, bool> itemreq_map, itemcon_map;
     mutable string conf_name;
 };

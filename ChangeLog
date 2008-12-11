@@ -1,3 +1,9 @@
+2008-12-11  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* 範囲型に対する未指定のデフォルト値が範囲内に収まるようにした
+
+	* デフォルト値の指定書式を変更
+
 2008-11-21  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* conf4cpp-0.0.5 リリース

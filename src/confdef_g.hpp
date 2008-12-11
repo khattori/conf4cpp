@@ -164,25 +164,6 @@ struct confdef_g : public grammar<confdef_g>
 
     static type_t strip_type(const vector<type_t>& typs) { if (typs.size() == 1) return typs.front(); return typs; }
     static void add_type(vector<type_t>& typs, const type_t& ty) { typs.push_back(ty); }
-    static var_t def_value(const type_t& ty) {
-        if (is_atomic_type(ty)) {
-            ti_atomic_t ta = boost::get<ti_atomic_t>(ty);
-            switch (ta) {
-            case TI_BOOL:   return bool(false);
-            case TI_INT:    return int(0);
-            case TI_UINT:   return (unsigned int)(0);
-            case TI_DOUBLE: return double(0.0);
-            case TI_STRING: return string("");
-            case TI_TIME:     { time_t t = 0; struct tm ret = *localtime(&t); return ret; }
-            case TI_IPV4ADDR: { struct in_addr  ret = {0}; return ret; }
-            case TI_IPV6ADDR: { struct in6_addr ret = {{{0}}}; return ret; }
-            }
-        } else if (is_enum_type(ty)) {
-            return 0;
-        }
-        assert(false);
-        return false; // return dummy value
-    }
 
     template <typename ScannerT> struct definition
     {

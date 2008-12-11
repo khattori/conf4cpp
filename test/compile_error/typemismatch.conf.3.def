@@ -1,4 +1,4 @@
 config type_mismatch_conf {
 	enum foo_t { FOO, BAR, BAZ }
-	foo : int(FOO);
+	foo : int = FOO;
 }

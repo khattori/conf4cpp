@@ -9,7 +9,9 @@ do
 	$CONF4CPP $fname
 	if test $? -ne 255 
 	then
-		echo "failed test case: $fname"
+		echo "!!!"
+		echo "!!! failed test case: $fname"
+		echo "!!!"
 	else
 		pass=`expr $pass + 1`
 	fi

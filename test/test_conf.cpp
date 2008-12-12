@@ -157,6 +157,26 @@ int main(int argc, char* args[])
     assert(conf.int_ranval4()==3);
     assert(conf.int_ranval5()==0);
     assert(conf.int_ranval6()==-10);
+    // range_vals: real[32.5~100.3],uint[100 ~ ],int[~-10] = 32.5, 100, -30;
+    assert(boost::get<0>(conf.range_vals())==32.5);
+    assert(boost::get<1>(conf.range_vals())==100);
+    assert(boost::get<2>(conf.range_vals())==-30);
+    assert(conf.set_range_vals(boost::make_tuple(double(0.0),(unsigned int)100,int(-20)))==false);
+    // ranval_list:list[2]<int[-10~10]>
+    {
+    vector<int> ranval_list_val = conf.ranval_list();
+    assert(ranval_list_val.size()==2);
+    assert(ranval_list_val[0] = 3);
+    assert(ranval_list_val[1] = -4);
+    ranval_list_val[1] = 100;
+	// 配列要素の範囲違反
+    assert(conf.set_ranval_list(ranval_list_val)==false);
+    }
+    {
+	// 配列の長さが違反
+    vector<int> ranval_list_val(3);
+    assert(conf.set_ranval_list(ranval_list_val)==false);
+    }
 
     conf.dump(cout);
 

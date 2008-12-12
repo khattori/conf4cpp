@@ -19,15 +19,17 @@ using namespace std;
 using namespace boost::spirit;
 using namespace conf4cpp;
 
+typedef map<string,vector<string> > enum_map_t;
+
 struct confdef_g : public grammar<confdef_g>
 {
-    struct type_val : closure<type_val, type_t> { member1 val; };
-    struct typs_val : closure<typs_val, vector<type_t> > { member1 val; };
-    struct typuint_val : closure<typuint_val, type_t, unsigned int> { member1 val; member2 len; };
-    struct pairvar_val : closure<pairvar_val, pair<var_t,var_t> >{ member1 val; };
-    struct uint_val   : closure<uint_val, unsigned int>      { member1 val; };
-    struct string_val : closure<string_val, string>          { member1 val; };
-    struct strvec_val : closure<strvec_val, vector<string> > { member1 val; };
+    struct type_val    : closure<type_val,type_t>                 { member1 val; };
+    struct typs_val    : closure<typs_val,vector<type_t> >        { member1 val; };
+    struct typuint_val : closure<typuint_val,type_t,unsigned int> { member1 val; member2 len; };
+    struct pairvar_val : closure<pairvar_val,pair<var_t,var_t> >  { member1 val; };
+    struct int_val     : closure<int_val,unsigned int>            { member1 val; };
+    struct string_val  : closure<string_val,string>               { member1 val; };
+    struct strvec_val  : closure<strvec_val,vector<string> >      { member1 val; };
     enum symtype_t {
         SYM_RESERVED, SYM_TYPENAME, SYM_CONFIG, SYM_ENUM, SYM_ELEM, SYM_ITEM, 
     };
@@ -76,7 +78,7 @@ struct confdef_g : public grammar<confdef_g>
             sym.add(key.c_str(), make_pair(SYM_ENUM, ti_enum_t(key)));
         }
     };
-    typedef map<string,vector<string> > enum_map_t;
+
     struct add_elemsym
     {
 	typedef void result_type;
@@ -171,7 +173,7 @@ struct confdef_g : public grammar<confdef_g>
 	rule<ScannerT,type_val::context_t> texp_r, atomic_texp_r;
         rule<ScannerT,typs_val::context_t> compound_texp_r;
         rule<ScannerT,typuint_val::context_t> postfix_texp_r ;
-        rule<ScannerT,uint_val::context_t> list_type_r;
+        rule<ScannerT,int_val::context_t> list_type_r;
         rule<ScannerT,pairvar_val::context_t> constraints_r;
 	rule<ScannerT> mandatory_r, qualifier_r;
         rule<ScannerT> new_sym, id_r;
@@ -246,7 +248,7 @@ struct confdef_g : public grammar<confdef_g>
 //                    >> !( '(' >> uint_p >> ')' )
 	        | atomic_texp_r[postfix_texp_r.val=arg1];
 	    list_type_r
-		= str_p("list")[list_type_r.val=0] >> !('[' >> uint_p[list_type_r.val=arg1] >> ']');
+		= str_p("list")[list_type_r.val=VAR_VECTOR] >> !('[' >> uint_p[list_type_r.val=construct_<int>(arg1)] >> ']');
 	    atomic_texp_r
 		= sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[var(self.cur_atyp)=bind(&get_atom)(var(self.cur_type.second))]

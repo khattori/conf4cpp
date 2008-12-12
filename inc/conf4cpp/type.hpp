@@ -48,6 +48,7 @@ namespace conf4cpp
 	pair<int, boost::recursive_variant_>,   // vector type 
 	vector<boost::recursive_variant_>       // tuple type
     >::type type_t;
+    const int VAR_VECTOR = -1;
     enum { IS_ATOM_T, IS_ENUM_T, IS_VECT_T, IS_TUPLE_T };
 
     inline bool is_atomic_type(const type_t& typ) { return typ.which() == IS_ATOM_T; }

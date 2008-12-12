@@ -45,6 +45,7 @@ private:
     void output_interface_accessors(ostream& os);
     void output_interface_initializers(ostream& os);
     void output_interface_setters(ostream& os);
+    void output_interface_rngchks(ostream& os);
     void output_interface_members(ostream& os);
     void output_implementation_keywords(ostream& os);
     void output_implementation_constvals(ostream& os);
@@ -53,14 +54,15 @@ private:
     void output_implementation_config_accessors(ostream& os);
     void output_implementation_config_initializers(ostream& os);
     void output_implementation_config_setters(ostream& os);
+    void output_implementation_config_rngchks(ostream& os);
     void output_implementation_config_enum2str(ostream& os);
     void output_implementation_config_dump(ostream& os);
 
     const string conf_name_;
-    const map<string, type_t> itemtyp_map_;
-    const map<string, var_t> itemdef_map_;
+    const tyinfo_map_t itemtyp_map_;
+    const value_map_t itemdef_map_;
     const map<string, bool> itemreq_map_, itemcon_map_;
-    const map<string, vector<string> > enumelem_map_;
+    const enum_map_t enumelem_map_;
 };
 
 #endif /* CONFGEN_HPP */

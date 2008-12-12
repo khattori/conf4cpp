@@ -6,6 +6,10 @@
 #include <limits.h>
 #include "confgen.hpp"
 
+using boost::lexical_cast;
+
+static string get_typestr(const type_t& ty);
+
 template <typename T> static T near_zero(T a, T b) {
     assert(a <= b);
 
@@ -128,10 +132,10 @@ struct tset_string : public boost::static_visitor<string>
         return "???";
     }
     string operator() (ti_enum_t te) const {
-        return string("ti_enum_t(\"") + boost::lexical_cast<string>(te.eid) + "\")";
+        return string("ti_enum_t(\"") + lexical_cast<string>(te.eid) + "\")";
     }
     string operator() (pair<unsigned int, type_t> tp) const {
-        return string("make_pair(") + boost::lexical_cast<string>(tp.first) + "," + apply_visitor(tset_string(lv+1),tp.second) + ")";
+        return string("make_pair(") + lexical_cast<string>(tp.first) + "," + apply_visitor(tset_string(lv+1),tp.second) + ")";
     }
     string operator() (vector<type_t> tv) const {
         string ret("(\n" + indent(lv));
@@ -151,7 +155,7 @@ struct tset_string : public boost::static_visitor<string>
 //
 struct vset_string : public boost::static_visitor<string>
 {
-    vset_string(const map<string,vector<string> >& eem_, const string& lhs_, const string& rhs_, unsigned int lv_)
+    vset_string(const enum_map_t& eem_, const string& lhs_, const string& rhs_, unsigned int lv_)
         : eem(eem_), lhs(lhs_), rhs(rhs_), lv(lv_) {}
 
     string operator() (ti_atomic_t ta) const {
@@ -175,10 +179,10 @@ struct vset_string : public boost::static_visitor<string>
         return lhs + " = " + te.eid + "(boost::get<pair<string,int> >(" + rhs + ").second);";
     }
     string operator() (pair<unsigned int, type_t> tp) const {
-        string istr = "i"+boost::lexical_cast<string>(lv);
+        string istr = "i"+lexical_cast<string>(lv);
         string ret("vector<var_t> " + lhs + "v = boost::get<vector<var_t> >(" + rhs + ");\n" + indent(lv-1));
         ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + lhs + "v.size(); "+istr+"++) {\n" + indent(lv);
-        ret += apply_visitor(type_string(),tp.second) + " " + lhs + "iv;\n" + indent(lv);
+        ret += get_typestr(tp.second) + " " + lhs + "iv;\n" + indent(lv);
         ret += apply_visitor(vset_string(eem,lhs+"iv",lhs+"v["+istr+"]",lv+1),tp.second) + "\n" + indent(lv);
         ret += lhs + ".push_back(" + lhs + "iv);\n" + indent(lv-1);
         ret += "}";
@@ -187,22 +191,82 @@ struct vset_string : public boost::static_visitor<string>
     string operator() (vector<type_t> tv) const {
         string ret;
         for (unsigned int i = 0; i < tv.size(); i++) {
-            string tystr = apply_visitor(type_string(), tv[i]);
-            string istr = boost::lexical_cast<string>(i);
+            string tystr = get_typestr(tv[i]);
+            string istr = lexical_cast<string>(i);
             ret +=  tystr + " " + lhs + istr + ";\n" + indent(lv-1);
             ret += apply_visitor(vset_string(eem,lhs+istr,"boost::get<vector<var_t> >("+rhs+")["+istr+"]",lv),tv[i]) + "\n" + indent(lv-1);
         }
         ret += lhs + " = make_tuple(";
         for (unsigned int i = 0; i < tv.size()-1; i++) {
-            ret += lhs + boost::lexical_cast<string>(i) + ",";
+            ret += lhs + lexical_cast<string>(i) + ",";
         }
-        ret += lhs + boost::lexical_cast<string>(tv.size()-1) + ");";
+        ret += lhs + lexical_cast<string>(tv.size()-1) + ");";
         return ret;
     }
-    const map<string, vector<string> >& eem;
+    const enum_map_t& eem;
     const string& lhs;
     const string& rhs;
     unsigned int lv;
+};
+
+//
+// format string for range check
+// 
+template<typename T> static string range_check(const string& v, const var_t& a, const var_t& b) {
+    string ret;
+    if (is_<T>(a) && is_<T>(b))
+        ret = "if (" + v + " < " + lexical_cast<string>(boost::get<T>(a))
+            + " || " + v + " > " + lexical_cast<string>(boost::get<T>(b)) + ") return false;\n";
+    else if (is_<T>(a))
+        ret = "if (" + v + " < " + lexical_cast<string>(boost::get<T>(a)) + ") return false;\n";
+    else if (is_<T>(b))
+        ret = "if (" + v + " > " + lexical_cast<string>(boost::get<T>(b)) + ") return false;\n";
+    return ret;
+}
+struct rchk_string : public boost::static_visitor<string>
+{
+    rchk_string(const string& rhs_, unsigned int lv_) : rhs(rhs_), lv(lv_) {}
+
+    const string& rhs;
+    unsigned int lv;
+
+    string operator() (ti_atomic_t ta) const {
+        if (!ta.c) return "";
+        switch (ta) {
+        case TI_BOOL:     break;
+        case TI_INT:      return range_check<int>         (rhs, ta.c->first, ta.c->second);
+        case TI_UINT:     return range_check<unsigned int>(rhs, ta.c->first, ta.c->second);
+        case TI_DOUBLE:   return range_check<double>      (rhs, ta.c->first, ta.c->second);
+        case TI_STRING:   break;
+        case TI_TIME:     break;
+        case TI_IPV4ADDR: break;
+        case TI_IPV6ADDR: break;
+        }
+        assert(false);
+        return "???";
+    }
+    string operator() (ti_enum_t te) const {
+        return "";
+    }
+    string operator() (pair<unsigned int, type_t> tp) const {
+        string ret;
+        if (tp.first > 0) {
+            ret += "if (" + rhs + ".size() != " + lexical_cast<string>(tp.first) + ") return false;\n" + indent(lv);
+        }
+        string istr = "i"+lexical_cast<string>(lv);
+        ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + rhs + ".size(); "+istr+"++) {\n" + indent(lv);
+        ret += get_typestr(tp.second) + " " + istr + "v = " + rhs + "[" + istr + "];\n" + indent(lv);
+        ret += apply_visitor(rchk_string(istr+"v",lv+1),tp.second) + indent(lv);
+        ret += "}";
+        return ret;
+    }
+    string operator() (vector<type_t> tv) const {
+        string ret;
+        for (unsigned i = 0; i < tv.size(); i++) {
+            ret += apply_visitor(rchk_string("boost::get<"+lexical_cast<string>(i)+">("+rhs+")",lv+1),tv[i]) + indent(lv);
+        }
+        return ret;
+    }
 };
 
 //
@@ -238,7 +302,7 @@ struct dump_string : public boost::static_visitor<string>
         // apply_visitor(dump_string(#kw[i#lv]}, lv+1), tp.second);
         // os << "}";
         string ret;
-        string istr = "i" + boost::lexical_cast<string>(lv);
+        string istr = "i" + lexical_cast<string>(lv);
         ret += indent(lv) + "os << \"{\";\n";
         ret += indent(lv) + "for (unsigned int " + istr + " = 0; " + istr + " < " + kw + ".size(); " + istr + "++) {\n";
         ret += apply_visitor(dump_string(kw+"["+istr+"]",lv+1),tp.second);
@@ -252,10 +316,10 @@ struct dump_string : public boost::static_visitor<string>
         ret += indent(lv) + "os << \"{\";\n";
         unsigned int i;
         for (i = 0; i < tv.size()-1; i++) {
-            ret += apply_visitor(dump_string("boost::get<"+boost::lexical_cast<string>(i)+">("+kw+")",lv),tv[i]);
+            ret += apply_visitor(dump_string("boost::get<"+lexical_cast<string>(i)+">("+kw+")",lv),tv[i]);
             ret += indent(lv) + "os << \",\";\n";
         }
-        ret += apply_visitor(dump_string("boost::get<"+boost::lexical_cast<string>(i)+">("+kw+")",lv),tv[i]);
+        ret += apply_visitor(dump_string("boost::get<"+lexical_cast<string>(i)+">("+kw+")",lv),tv[i]);
         ret += indent(lv) + "os << \"}\";\n";
         return ret;
     }
@@ -277,25 +341,25 @@ struct defv_string : public boost::static_visitor<string>
         }
         switch (ta) {
         case TI_BOOL:     return lhs + " = " + (boost::get<bool>(dv) ? "true" : "false") + ";";
-        case TI_INT:      return lhs + " = " + (is_uint(dv) ? boost::lexical_cast<string>(boost::get<uint>(dv)) : boost::lexical_cast<string>(boost::get<int>(dv))) + ";";
-        case TI_UINT:     return lhs + " = " + boost::lexical_cast<string>(boost::get<unsigned int>(dv)) + "U;";
-        case TI_DOUBLE:   return lhs + " = " + boost::lexical_cast<string>(boost::get<double>(dv)) + ";";
+        case TI_INT:      return lhs + " = " + (is_uint(dv) ? lexical_cast<string>(boost::get<uint>(dv)) : lexical_cast<string>(boost::get<int>(dv))) + ";";
+        case TI_UINT:     return lhs + " = " + lexical_cast<string>(boost::get<unsigned int>(dv)) + "U;";
+        case TI_DOUBLE:   return lhs + " = " + lexical_cast<string>(boost::get<double>(dv)) + ";";
         case TI_STRING:   return lhs + " = \"" + boost::get<string>(dv) + "\";";
         case TI_TIME: {
             struct tm t = boost::get<struct tm>(dv);
             string ret("*localtime((t_=");
-            ret += boost::lexical_cast<string>(mktime(&t)) + ",&t_))";
+            ret += lexical_cast<string>(mktime(&t)) + ",&t_))";
             return lhs + " = " + ret + ";";
         }
-        case TI_IPV4ADDR: return lhs + " = to_in_addr(" + boost::lexical_cast<string>(boost::get<struct in_addr>(dv).s_addr) + ");";
+        case TI_IPV4ADDR: return lhs + " = to_in_addr(" + lexical_cast<string>(boost::get<struct in_addr>(dv).s_addr) + ");";
         case TI_IPV6ADDR: {
             struct in6_addr addr = boost::get<struct in6_addr>(dv);
             unsigned int i;
             string ret("to_in6_addr(");
             for (i = 0; i < sizeof(addr.s6_addr)-1; i++) {
-                ret += boost::lexical_cast<string>(int(addr.s6_addr[i])) + ",";
+                ret += lexical_cast<string>(int(addr.s6_addr[i])) + ",";
             }
-            ret += boost::lexical_cast<string>(int(addr.s6_addr[i])) + ")";
+            ret += lexical_cast<string>(int(addr.s6_addr[i])) + ")";
             return lhs + " = " + ret + ";";
         }
         }
@@ -307,15 +371,15 @@ struct defv_string : public boost::static_visitor<string>
         if (is_nil(dv)) {
             return lhs + " = " + te.eid + "(0);";
         } 
-        return lhs + " = " + boost::get<pair<string,int> >(dv).first + "(" + boost::lexical_cast<string>(boost::get<pair<string,int> >(dv).second) + ");"; 
+        return lhs + " = " + boost::get<pair<string,int> >(dv).first + "(" + lexical_cast<string>(boost::get<pair<string,int> >(dv).second) + ");"; 
     }
 
     string operator() (pair<unsigned int, type_t> tp) const {
         if (tp.first == 0 && is_nil(dv)) {
-            return lhs + " = vector<" + apply_visitor(type_string(),tp.second) + " >();";
+            return lhs + " = vector<" + get_typestr(tp.second) + " >();";
         }
 
-        string ret(apply_visitor(type_string(),tp.second) + " " + lhs + "iv;\n");
+        string ret(get_typestr(tp.second) + " " + lhs + "iv;\n");
         if (is_nil(dv)) {
             for (unsigned int i = 0; i < tp.first; i++) {
                 ret += indent(lv-1) + apply_visitor(defv_string(lhs+"iv",dv,lv+1),tp.second) + "\n" + indent(lv-1); 
@@ -335,8 +399,8 @@ struct defv_string : public boost::static_visitor<string>
         string ret;
         ret += "{\n" + indent(lv-1);
         for (unsigned int i = 0; i < tv.size(); i++) {
-            string tystr = apply_visitor(type_string(), tv[i]);
-            string istr = boost::lexical_cast<string>(i);
+            string tystr = get_typestr(tv[i]);
+            string istr = lexical_cast<string>(i);
             ret += tystr + " " + lhs + istr + ";\n" + indent(lv-1);
             if (is_nil(dv)) {
                 ret += apply_visitor(defv_string(lhs+istr,dv,lv),tv[i]) + "\n" + indent(lv-1);
@@ -346,9 +410,9 @@ struct defv_string : public boost::static_visitor<string>
         }
         ret += lhs + " = make_tuple(";
         for (unsigned int i = 0; i < tv.size()-1; i++) {
-            ret += lhs + boost::lexical_cast<string>(i) + ",";
+            ret += lhs + lexical_cast<string>(i) + ",";
         }
-        ret += lhs + boost::lexical_cast<string>(tv.size()-1) + ");";
+        ret += lhs + lexical_cast<string>(tv.size()-1) + ");";
         ret += "}\n" + indent(lv-1);
         return ret;
     }
@@ -358,12 +422,18 @@ struct defv_string : public boost::static_visitor<string>
     unsigned int lv;        
 };
 
-static string get_typestr(const type_t& ty) { return apply_visitor(type_string(), ty); }
-static string get_tsetstr(const type_t& ty, unsigned int lv) { return apply_visitor(tset_string(lv), ty); }
-static string get_vsetstr(const type_t& ty, const string& lhs, const string& rhs, unsigned int lv, const map<string, vector<string> >& enumelem_map)
+static inline string get_typestr(const type_t& ty)
+{ return apply_visitor(type_string(), ty); }
+static inline string get_tsetstr(const type_t& ty, unsigned int lv)
+{ return apply_visitor(tset_string(lv), ty); }
+static inline string get_vsetstr(const type_t& ty, const string& lhs, const string& rhs, unsigned int lv, const enum_map_t& enumelem_map)
 { return apply_visitor(vset_string(enumelem_map,lhs,rhs,lv), ty); }
-static string get_defvstr(const type_t& ty, const string& lhs, const var_t& dv, unsigned int lv) { return apply_visitor(defv_string(lhs,dv,lv), ty); }
-static string get_dumpstr(const string& kw, const type_t& ty, unsigned int lv) { return apply_visitor(dump_string(kw+"_", lv), ty); }
+static inline string get_defvstr(const type_t& ty, const string& lhs, const var_t& dv, unsigned int lv)
+{ return apply_visitor(defv_string(lhs,dv,lv), ty); }
+static inline string get_rchkstr(const type_t& ty, const string& rhs, unsigned int lv) 
+{ return apply_visitor(rchk_string(rhs,lv), ty); }
+static inline string get_dumpstr(const string& kw, const type_t& ty, unsigned int lv)
+{ return apply_visitor(dump_string(kw+"_", lv), ty); }
 
 void
 confgen::output_interface_header(ostream& os, const string& incfile)
@@ -446,7 +516,7 @@ confgen::output_interface(ostream& os)
     output_interface_accessors(os);
 
     os << "\tvoid dump(ostream& os);" << endl;
-    for (map<string,vector<string> >::const_iterator iter = enumelem_map_.begin();
+    for (enum_map_t::const_iterator iter = enumelem_map_.begin();
          iter != enumelem_map_.end();
          ++iter) {
         os << "\tstatic const char* enum2str(" << iter->first << " e);" << endl;
@@ -455,6 +525,7 @@ confgen::output_interface(ostream& os)
     os << "private:" << endl;
     output_interface_initializers(os);
     output_interface_setters(os);
+    output_interface_rngchks(os);
     output_interface_members(os);
 
     os << "};" << endl;
@@ -464,7 +535,7 @@ void
 confgen::output_interface_enumdefs(ostream& os)
 {
     os << "\t// definitions of enum type" << endl;
-    for (map<string,vector<string> >::const_iterator iter = enumelem_map_.begin();
+    for (enum_map_t::const_iterator iter = enumelem_map_.begin();
          iter != enumelem_map_.end();
          ++iter) {
         os << "\tenum " << iter->first << " { ";
@@ -480,7 +551,7 @@ confgen::output_interface_accessors(ostream& os)
 {
     os << "\t// definitions of accessors" << endl;
     os << "\tbool set(const string& itemdef);" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {
         os << "\tconst " << get_typestr(iter->second) << "& " << iter->first << "() const { return " << iter->first << "_; }" << endl;
@@ -493,7 +564,7 @@ void
 confgen::output_interface_initializers(ostream& os)
 {
     os << "\t// definitions of private initializers" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
         iter != itemtyp_map_.end();
         ++iter) {
         if (!itemreq_map_.find(iter->first)->second) os << "\tvoid init_" << iter->first << "_();" << endl;
@@ -503,8 +574,8 @@ confgen::output_interface_initializers(ostream& os)
 void
 confgen::output_interface_setters(ostream& os)
 {
-    os << "\t// definitions of private stters" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    os << "\t// definitions of private setters" << endl;
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
         iter != itemtyp_map_.end();
         ++iter) {
         os << "\tvoid set_" << iter->first << "_(const conf4cpp::var_t& v_);" << endl;
@@ -512,10 +583,23 @@ confgen::output_interface_setters(ostream& os)
 }
 
 void
+confgen::output_interface_rngchks(ostream& os)
+{
+    os << "\t// definitions of private range checkers" << endl;
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
+         iter != itemtyp_map_.end();
+         ++iter) {
+        if (!itemcon_map_.find(iter->first)->second) {
+            os << "\tbool rngchk_" << iter->first << "_(const " << get_typestr(iter->second) << "& v_);" << endl;
+        }
+    }
+}
+
+void
 confgen::output_interface_members(ostream& os)
 {
     os << "\t// definitions of members" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
         iter != itemtyp_map_.end();
         ++iter) {
         os << "\t" << get_typestr(iter->second) << " " << iter->first << "_;" << endl;
@@ -553,6 +637,7 @@ confgen::output_implementation(ostream& os)
     output_implementation_config_accessors(os);
     output_implementation_config_initializers(os);
     output_implementation_config_setters(os);
+    output_implementation_config_rngchks(os);
     output_implementation_config_enum2str(os);
     output_implementation_config_dump(os);
 }
@@ -564,7 +649,7 @@ confgen::output_implementation_keywords(ostream& os)
     os << "\t\tkeywords() {" << endl;
     if (itemtyp_map_.begin() != itemtyp_map_.end()) {
     	os << "\t\t\tadd" << endl;
-    	for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    	for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
              iter != itemtyp_map_.end();
              ++iter) {
             os << "\t\t\t(\"" << iter->first << "\", \"" << iter->first << "\")" << endl;
@@ -582,7 +667,7 @@ confgen::output_implementation_constvals(ostream& os)
     os << "\t\tconstvals() {" << endl;
     if (enumelem_map_.begin() != enumelem_map_.end()) {
         os << "\t\t\tadd" << endl;
-        for (map<string,vector<string> >::const_iterator iter = enumelem_map_.begin();
+        for (enum_map_t::const_iterator iter = enumelem_map_.begin();
              iter != enumelem_map_.end();
              ++iter) {
             for (unsigned int i = 0; i < enumelem_map_.find(iter->first)->second.size(); i++) {
@@ -617,7 +702,7 @@ confgen::output_implementation_parser_constructor(ostream& os)
     os << "\t\t// set item type" << endl;
     os << "\t\tvector<vector<type_t> > tvv;" << endl
        << "\t\tvector<type_t> tv;" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {
         os << "\t\ttimap[\"" << iter->first << "\"] = " << get_tsetstr(iter->second, 2) << ";" << endl;
@@ -643,7 +728,7 @@ confgen::output_implementation_config_constructor(ostream& os)
     os << conf_name_ << "::" << conf_name_ << "(const string& fname) : base_config<" << conf_name_ << "_parser>(fname)" << endl;
     os << "{" << endl;
     os << "\ttime_t t_ __attribute__((unused));" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {
@@ -667,18 +752,19 @@ void
 confgen::output_implementation_config_accessors(ostream& os)
 {
     os << "// definitions of accessors" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {
         if (!itemcon_map_.find(iter->first)->second) {
 	    type_t t = iter->second;
             os << "bool " << conf_name_ << "::set_" << iter->first << "(const " << get_typestr(t) << "& v) { ";
-            os << "if (range_check(p->timap[\"" << iter->first << "\"], v)) { " << iter->first << "_ = v; return true; } else return false; }" << endl;
+            os << "if (rngchk_" << iter->first << "_(v)) { "
+               << iter->first << "_ = v; return true; } else return false; }" << endl;
 	}
     }
     os << "bool " << conf_name_ << "::set(const string& itemdef) {" << endl;
     os << "\tif (!base_config<" << conf_name_ << "_parser>::set(itemdef)) return false;" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {
         string key = iter->first;
@@ -696,11 +782,11 @@ void
 confgen::output_implementation_config_initializers(ostream& os)
 {
     os << "// definitions of private initializers" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {
-            map<string, var_t>::const_iterator di = itemdef_map_.find(iter->first);
+            value_map_t::const_iterator di = itemdef_map_.find(iter->first);
             os << "void " << conf_name_ << "::init_" << iter->first << "_() {" << endl;
             os << "\ttime_t t_ __attribute__((unused));" << endl;
             os << "\t" << get_defvstr(iter->second, iter->first+"_", di == itemdef_map_.end() ? boost::spirit::nil_t() : di->second, 2) << endl;
@@ -713,7 +799,7 @@ void
 confgen::output_implementation_config_setters(ostream& os)
 {
     os << "// definitions of private setters" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {
         os << "void " << conf_name_ << "::set_" << iter->first << "_(const var_t& v_) {" << endl;
@@ -725,11 +811,28 @@ confgen::output_implementation_config_setters(ostream& os)
     }
 }
 
+
+void
+confgen::output_implementation_config_rngchks(ostream& os)
+{
+    os << "// definitions of private range checkers" << endl;
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
+         iter != itemtyp_map_.end();
+         ++iter) {
+        if (!itemcon_map_.find(iter->first)->second) {
+            os << "bool " << conf_name_ << "::rngchk_" << iter->first << "_(const " << get_typestr(iter->second) << "& v_) {" << endl;
+            os << "\t" << get_rchkstr(iter->second, "v_", 1) << endl;
+            os << "\treturn true;" << endl;
+            os << "}" << endl;
+        }
+    }
+}
+
 void
 confgen::output_implementation_config_enum2str(ostream& os)
 {
     os << "// definition config enum2str" << endl;
-    for (map<string,vector<string> >::const_iterator iter = enumelem_map_.begin();
+    for (enum_map_t::const_iterator iter = enumelem_map_.begin();
          iter != enumelem_map_.end();
          ++iter) {
         os << "const char* " << conf_name_ << "::enum2str(" << iter->first << " e) {" << endl;
@@ -750,7 +853,7 @@ confgen::output_implementation_config_dump(ostream& os)
     os << "void " << conf_name_ << "::dump(ostream& os) {" << endl;
     os << "\tchar buf[BUFSIZ] __attribute__((unused));" << endl;
     os << "\tos << \"[" << conf_name_ << "]\\n{\" << endl;" << endl;
-    for (map<string,type_t>::const_iterator iter = itemtyp_map_.begin();
+    for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {
         if (!itemreq_map_.find(iter->first)->second) {

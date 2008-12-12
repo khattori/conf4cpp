@@ -1,0 +1,3 @@
+config length_mismatch_conf {
+    optional vector_val : list[0]<int> = { 3, 4 };
+}

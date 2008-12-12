@@ -315,17 +315,17 @@ struct defv_string : public boost::static_visitor<string>
             return lhs + " = vector<" + apply_visitor(type_string(),tp.second) + " >();";
         }
 
-        string ret(apply_visitor(type_string(),tp.second) + " " + lhs + "iv;\n" + indent(lv));
+        string ret(apply_visitor(type_string(),tp.second) + " " + lhs + "iv;\n");
         if (is_nil(dv)) {
             for (unsigned int i = 0; i < tp.first; i++) {
-                ret += apply_visitor(defv_string(lhs+"iv",dv,lv+1),tp.second) + "\n" + indent(lv-1); 
-                ret += lhs + ".push_back(" + lhs + "iv);\n";
+                ret += indent(lv-1) + apply_visitor(defv_string(lhs+"iv",dv,lv+1),tp.second) + "\n" + indent(lv-1); 
+                ret += indent(lv-1) + lhs + ".push_back(" + lhs + "iv);\n" + indent(lv-1);
             }
         } else {
             vector<var_t> dvv = boost::get<vector<var_t> >(dv);
             for (unsigned int i = 0; i < dvv.size(); i++) {
-                ret += apply_visitor(defv_string(lhs+"iv",dvv[i],lv+1),tp.second) + "\n" + indent(lv-1); 
-                ret += lhs + ".push_back(" + lhs + "iv);\n";
+                ret += indent(lv-1) + apply_visitor(defv_string(lhs+"iv",dvv[i],lv+1),tp.second) + "\n";
+                ret += indent(lv-1) + lhs + ".push_back(" + lhs + "iv);\n";
             } 
         }
         return ret;
@@ -673,11 +673,7 @@ confgen::output_implementation_config_accessors(ostream& os)
         if (!itemcon_map_.find(iter->first)->second) {
 	    type_t t = iter->second;
             os << "bool " << conf_name_ << "::set_" << iter->first << "(const " << get_typestr(t) << "& v) { ";
-	    if (is_atomic_type(t) && boost::get<ti_atomic_t>(t).c) {
-                os << "if (range_check(p->timap[\"" << iter->first << "\"], v)) { " << iter->first << "_ = v; return true; } else return false; }" << endl;
-	    } else {
-                os << iter->first << "_ = v; return true; }" << endl;
-	    }
+            os << "if (range_check(p->timap[\"" << iter->first << "\"], v)) { " << iter->first << "_ = v; return true; } else return false; }" << endl;
 	}
     }
     os << "bool " << conf_name_ << "::set(const string& itemdef) {" << endl;

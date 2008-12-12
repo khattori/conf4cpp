@@ -135,6 +135,7 @@ namespace conf4cpp
 	bool operator() (ti_enum_t te) const { return true; }
 	bool operator() (pair<unsigned int, type_t> tp) const {
 	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
+	    if (tp.first > 0 && tp.first != vec.size()) return false;
 	    for (unsigned int i = 0; i < vec.size(); i++) {
 		if (!apply_visitor(range_checker(vec[i]), tp.second)) return false;
 	    }

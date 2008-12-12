@@ -44,7 +44,11 @@ int main(int argc, char* args[])
     assert(conf.string_list()[0]=="foo");
     assert(conf.string_list()[1]=="bar");
     assert(conf.string_list()[2]=="baz");
+    vector<string> string0_list_val(1,"foo");
+    assert(conf.set_string0_list(string0_list_val)==false); 
     assert(conf.string0_list().size()==0);
+    vector<int> int1_list_val(5);
+    assert(conf.set_int1_list(int1_list_val)==false);
     assert(conf.int1_list().size()==1);
     assert(conf.int1_list()[0]==10);
     assert(conf.bool9_list().size()==9);
@@ -131,6 +135,9 @@ int main(int argc, char* args[])
     assert(conf.uint_ranval3()==123);
     assert(conf.set_uint_ranval3(11)==false);
     assert(conf.uint_ranval3()==123);
+    vector<tuple<string,int> > stri_list_def_val;    
+    assert(conf.set_stri_list_def(stri_list_def_val)==false);
+    assert(conf.stri_list_def().size()==3);
     // test general setter
     assert(conf.set("uint_ranval3 = 200;")==true);
     assert(conf.uint_ranval3()==200);

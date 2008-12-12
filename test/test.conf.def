@@ -8,8 +8,8 @@ config test_conf {
 	optional mutable string_val: string;
 	optional const real_val	: real;
 	required string_list	: list<string>;
-	required string0_list	: list[0]<string>;
-	required int1_list	: list[1]<int>;
+	mutable required string0_list	: list[0]<string>;
+	mutable required int1_list	: list[1]<int>;
 	required bool9_list	: list[9]<bool>;
 	required real_llist	: list<list<real>>;
  		 stri_list	: list<string,int>;
@@ -33,7 +33,7 @@ config test_conf {
 
 	optional rib_tuple_def	: real,int,bool = {-3.14,5,false};
 	optional rib_tuple_def2	: real,int,bool;
-	optional stri_list_def	: list[3]<string,int> = {"hoge",1234},{"hoge",1234},{"hoge",1234};
+	mutable optional stri_list_def	: list[3]<string,int> = {"hoge",1234},{"hoge",1234},{"hoge",1234};
 
 	optional date_value	: time;
 	optional date_value2	: time = 2003/12/31;

@@ -187,6 +187,7 @@ struct confdef_g : public grammar<confdef_g>
             assertion<string> symbol_redef_e("symbol redefined");
             assertion<string> invalid_range_e("invalid range");
             assertion<string> defval_typemismatch_e("default value is type mismatch");
+            assertion<string> defval_outofrange_e("default value is out of range");
             assertion<string> parse_failed_e("parser error");
 
             using phoenix::arg1;
@@ -216,6 +217,7 @@ struct confdef_g : public grammar<confdef_g>
                     >> !('='
                          >> value_p[insert_at_a(self.itemdef_map,self.cur_sym,value_p.val)]
                          >> defval_typemismatch_e(eps_p(bind(&type_mismatch)(var(self.itemtyp_map),var(self.itemdef_map),var(self.cur_sym))==false))
+                         >> defval_outofrange_e(eps_p(bind(&out_of_range)(var(self.itemtyp_map),var(self.itemdef_map),var(self.cur_sym))==false))
                         )
                     >> ';';
 	    enumdef_r

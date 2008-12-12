@@ -42,6 +42,10 @@ namespace conf4cpp
         return false;
     }
 
+    static bool out_of_range(tyinfo_map_t& tm, value_map_t& vm, const string& key) {
+        return !apply_visitor(range_checker(vm[key]), tm[key]);
+    }
+
     template <typename derived_T>
     struct base_config_parser : public grammar<base_config_parser<derived_T> >
     {
@@ -49,9 +53,6 @@ namespace conf4cpp
             if (ss.find(key) != ss.end()) return true;
             ss.insert(key);
             return false;
-        }
-        static bool out_of_range(tyinfo_map_t& tm, value_map_t& vm, const string& key) {
-            return !apply_visitor(range_checker(vm[key]), tm[key]);
         }
 
         template <typename ScannerT> struct definition

@@ -510,6 +510,8 @@ confgen::output_interface(ostream& os)
     os << "struct " << conf_name_ << "_parser;" << endl;
     os << "class " << conf_name_ << " : public conf4cpp::base_config<" << conf_name_ << "_parser>" << endl;
     os << "{" << endl;
+
+    // output public members
     os << "public:" << endl;
     os << "\t" << conf_name_ << "(const string& fname);" << endl;
     
@@ -523,7 +525,11 @@ confgen::output_interface(ostream& os)
         os << "\tstatic const char* enum2str(" << iter->first << " e);" << endl;
     }
 
+    // output private members
     os << "private:" << endl;
+    os << "\t// prohibit copy constructor and assign operation" << endl;
+    os << "\t" << conf_name_ << "(const " << conf_name_ << "&);" << endl;
+    os << "\t" << conf_name_ << "& operator=(const " << conf_name_ << "&);" << endl;
     output_interface_initializers(os);
     output_interface_setters(os);
     output_interface_rngchks(os);

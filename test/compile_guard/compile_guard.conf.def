@@ -1,0 +1,4 @@
+config compile_guard_conf {
+	foo : int;
+        bar : string;
+}

@@ -22,7 +22,6 @@ static string indent(unsigned int lv) {
     for (unsigned int i = 0; i < lv; i++) ret += "\t";
     return ret;
 }
-
 static string to_cchar(const string& name)
 {
     string ret;
@@ -40,13 +39,12 @@ static var_t def_value(const type_t& ty) {
         case TI_BOOL:   return bool(false);
         case TI_INT:
             if (ta.c) {
-                int a = INT_MIN;
-                int b = INT_MAX;
-                if (is_int(ta.c->first)) a = boost::get<int>(ta.c->first);
-                else if (is_uint(ta.c->first)) a = boost::get<unsigned int>(ta.c->first);
-                if (is_int(ta.c->second)) b = boost::get<int>(ta.c->second);
-                else if (is_uint(ta.c->second)) b = boost::get<unsigned int>(ta.c->second);
-                return near_zero(a,b);
+                if (is_int(ta.c->first) && is_int(ta.c->second))
+                    return near_zero(boost::get<int>(ta.c->first),boost::get<int>(ta.c->second));
+                if (is_int(ta.c->first) && boost::get<int>(ta.c->first) > 0)
+                    return boost::get<int>(ta.c->first);
+                if (is_int(ta.c->second) && boost::get<int>(ta.c->second) < 0)
+                    return boost::get<int>(ta.c->second);
             }
             return int(0);
         case TI_UINT:
@@ -94,10 +92,10 @@ struct type_string : public boost::static_visitor<string>
         return "???";
     }
     string operator() (ti_enum_t te) const { return te.eid; }
-    string operator() (pair<unsigned int, type_t> tp) const {
+    string operator() (ti_vect_t tp) const {
         return string("vector<") + apply_visitor(type_string(),tp.second) + " >";
     }
-    string operator() (vector<type_t> tv) const {
+    string operator() (ti_tuple_t tv) const {
         string ret("tuple<");
         for (unsigned int i = 0; i < tv.size()-1; i++) {
             ret += apply_visitor(type_string(),tv[i]) + ",";
@@ -134,12 +132,12 @@ struct tset_string : public boost::static_visitor<string>
     string operator() (ti_enum_t te) const {
         return string("ti_enum_t(\"") + lexical_cast<string>(te.eid) + "\")";
     }
-    string operator() (pair<unsigned int, type_t> tp) const {
+    string operator() (ti_vect_t tp) const {
         return string("make_pair(") + lexical_cast<string>(tp.first) + "," + apply_visitor(tset_string(lv+1),tp.second) + ")";
     }
-    string operator() (vector<type_t> tv) const {
+    string operator() (ti_tuple_t tv) const {
         string ret("(\n" + indent(lv));
-        ret += "tvv.push_back(vector<type_t>()),\n" + indent(lv);
+        ret += "tvv.push_back(ti_tuple_t()),\n" + indent(lv);
         for (unsigned int i = 0; i < tv.size()-1; i++) {
             ret += "tvv.back().push_back(" + apply_visitor(tset_string(lv+1),tv[i]) + "),\n" + indent(lv);
         }
@@ -161,7 +159,7 @@ struct vset_string : public boost::static_visitor<string>
     string operator() (ti_atomic_t ta) const {
         switch (ta) {
         case TI_BOOL:     return lhs + " = boost::get<bool>(" + rhs + ");"; 
-        case TI_INT:      return lhs + " = is_int(" + rhs + ") ? boost::get<int>(" + rhs + ") : boost::get<unsigned int>(" + rhs + ");";
+        case TI_INT:      return lhs + " = boost::get<int>(" + rhs + ");";
         case TI_UINT:     return lhs + " = boost::get<unsigned int>(" + rhs + ");";
         case TI_DOUBLE:   return lhs + " = boost::get<double>(" + rhs + ");";
         case TI_STRING:   return lhs + " = boost::get<string>(" + rhs + ");";
@@ -178,7 +176,7 @@ struct vset_string : public boost::static_visitor<string>
         }
         return lhs + " = " + te.eid + "(boost::get<pair<string,int> >(" + rhs + ").second);";
     }
-    string operator() (pair<unsigned int, type_t> tp) const {
+    string operator() (ti_vect_t tp) const {
         string istr = "i"+lexical_cast<string>(lv);
         string ret("vector<var_t> " + lhs + "v = boost::get<vector<var_t> >(" + rhs + ");\n" + indent(lv-1));
         ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + lhs + "v.size(); "+istr+"++) {\n" + indent(lv);
@@ -188,7 +186,7 @@ struct vset_string : public boost::static_visitor<string>
         ret += "}";
         return ret;
     }
-    string operator() (vector<type_t> tv) const {
+    string operator() (ti_tuple_t tv) const {
         string ret;
         for (unsigned int i = 0; i < tv.size(); i++) {
             string tystr = get_typestr(tv[i]);
@@ -216,11 +214,11 @@ template<typename T> static string range_check(const string& v, const var_t& a, 
     string ret;
     if (is_<T>(a) && is_<T>(b))
         ret = "if (" + v + " < " + lexical_cast<string>(boost::get<T>(a))
-            + " || " + v + " > " + lexical_cast<string>(boost::get<T>(b)) + ") return false;\n";
+            + " || " + v + " > " + lexical_cast<string>(boost::get<T>(b)) + ") return false;";
     else if (is_<T>(a))
-        ret = "if (" + v + " < " + lexical_cast<string>(boost::get<T>(a)) + ") return false;\n";
+        ret = "if (" + v + " < " + lexical_cast<string>(boost::get<T>(a)) + ") return false;";
     else if (is_<T>(b))
-        ret = "if (" + v + " > " + lexical_cast<string>(boost::get<T>(b)) + ") return false;\n";
+        ret = "if (" + v + " > " + lexical_cast<string>(boost::get<T>(b)) + ") return false;";
     return ret;
 }
 struct rchk_string : public boost::static_visitor<string>
@@ -248,22 +246,26 @@ struct rchk_string : public boost::static_visitor<string>
     string operator() (ti_enum_t te) const {
         return "";
     }
-    string operator() (pair<unsigned int, type_t> tp) const {
+    string operator() (ti_vect_t tp) const {
         string ret;
-        if (tp.first > 0) {
+        if (tp.first >= 0) {
             ret += "if (" + rhs + ".size() != " + lexical_cast<string>(tp.first) + ") return false;\n" + indent(lv);
         }
         string istr = "i"+lexical_cast<string>(lv);
-        ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + rhs + ".size(); "+istr+"++) {\n" + indent(lv);
-        ret += get_typestr(tp.second) + " " + istr + "v = " + rhs + "[" + istr + "];\n" + indent(lv);
-        ret += apply_visitor(rchk_string(istr+"v",lv+1),tp.second) + indent(lv);
+        string rchk = apply_visitor(rchk_string(istr+"v",lv+1),tp.second);
+ 	if (rchk == "") return ret;
+        ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + rhs + ".size(); "+istr+"++) {\n" + indent(lv+1);
+        ret += get_typestr(tp.second) + " " + istr + "v = " + rhs + "[" + istr + "];\n" + indent(lv+1);
+        ret += rchk + "\n" + indent(lv);
         ret += "}";
         return ret;
     }
-    string operator() (vector<type_t> tv) const {
+    string operator() (ti_tuple_t tv) const {
         string ret;
         for (unsigned i = 0; i < tv.size(); i++) {
-            ret += apply_visitor(rchk_string("boost::get<"+lexical_cast<string>(i)+">("+rhs+")",lv+1),tv[i]) + indent(lv);
+	    string rchk = apply_visitor(rchk_string("boost::get<"+lexical_cast<string>(i)+">("+rhs+")",lv+1),tv[i]);
+	    if (rchk == "") continue;
+            ret += rchk + "\n" + indent(lv);
         }
         return ret;
     }
@@ -292,7 +294,7 @@ struct dump_string : public boost::static_visitor<string>
     string operator() (ti_enum_t te) const {
         return indent(lv) + "os << enum2str(" + kw + ");\n";
     }
-    string operator() (pair<unsigned int, type_t> tp) const {
+    string operator() (ti_vect_t tp) const {
         // os << "{ ";
         // unsigned int i#lv;
         // for (i#lv = 0; i#lv < #kw.size()-1; i++) {
@@ -311,7 +313,7 @@ struct dump_string : public boost::static_visitor<string>
         ret += indent(lv) + "os << \"}\";\n";
         return ret;
     }
-    string operator() (vector<type_t> tv) const {
+    string operator() (ti_tuple_t tv) const {
         string ret;
         ret += indent(lv) + "os << \"{\";\n";
         unsigned int i;
@@ -341,7 +343,7 @@ struct defv_string : public boost::static_visitor<string>
         }
         switch (ta) {
         case TI_BOOL:     return lhs + " = " + (boost::get<bool>(dv) ? "true" : "false") + ";";
-        case TI_INT:      return lhs + " = " + (is_uint(dv) ? lexical_cast<string>(boost::get<uint>(dv)) : lexical_cast<string>(boost::get<int>(dv))) + ";";
+        case TI_INT:      return lhs + " = " + lexical_cast<string>(boost::get<int>(dv)) + ";";
         case TI_UINT:     return lhs + " = " + lexical_cast<string>(boost::get<unsigned int>(dv)) + "U;";
         case TI_DOUBLE:   return lhs + " = " + lexical_cast<string>(boost::get<double>(dv)) + ";";
         case TI_STRING:   return lhs + " = \"" + boost::get<string>(dv) + "\";";
@@ -374,14 +376,13 @@ struct defv_string : public boost::static_visitor<string>
         return lhs + " = " + boost::get<pair<string,int> >(dv).first + "(" + lexical_cast<string>(boost::get<pair<string,int> >(dv).second) + ");"; 
     }
 
-    string operator() (pair<unsigned int, type_t> tp) const {
-        if (tp.first == 0 && is_nil(dv)) {
+    string operator() (ti_vect_t tp) const {
+        if (tp.first < 0 && is_nil(dv)) {
             return lhs + " = vector<" + get_typestr(tp.second) + " >();";
         }
-
         string ret(get_typestr(tp.second) + " " + lhs + "iv;\n");
         if (is_nil(dv)) {
-            for (unsigned int i = 0; i < tp.first; i++) {
+            for (int i = 0; i < tp.first; i++) {
                 ret += indent(lv-1) + apply_visitor(defv_string(lhs+"iv",dv,lv+1),tp.second) + "\n" + indent(lv-1); 
                 ret += indent(lv-1) + lhs + ".push_back(" + lhs + "iv);\n" + indent(lv-1);
             }
@@ -395,7 +396,7 @@ struct defv_string : public boost::static_visitor<string>
         return ret;
     }
 
-    string operator() (vector<type_t> tv) const {
+    string operator() (ti_tuple_t tv) const {
         string ret;
         ret += "{\n" + indent(lv-1);
         for (unsigned int i = 0; i < tv.size(); i++) {
@@ -700,8 +701,8 @@ confgen::output_implementation_parser_constructor(ostream& os)
     }
     // set item type
     os << "\t\t// set item type" << endl;
-    os << "\t\tvector<vector<type_t> > tvv;" << endl
-       << "\t\tvector<type_t> tv;" << endl;
+    os << "\t\tvector<ti_tuple_t> tvv;" << endl
+       << "\t\tti_tuple_t tv;" << endl;
     for (tyinfo_map_t::const_iterator iter = itemtyp_map_.begin();
          iter != itemtyp_map_.end();
          ++iter) {

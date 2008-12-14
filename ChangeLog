@@ -1,3 +1,8 @@
+2008-12-14  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* int型におけるuintの処理を簡単にするためパース直後に正規化処理を
+	行なうにした
+
 2008-12-11  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* 範囲型に対する未指定のデフォルト値が範囲内に収まるようにした

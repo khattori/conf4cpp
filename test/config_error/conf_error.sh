@@ -9,7 +9,7 @@ do
 	echo -n "$fname: " ; $CONFERR $fname
 	if test $? -ne 255 
 	then
-		echo "failed test case: $fname"
+		echo "!!! failed test case: $fname !!!"
 	else
 		pass=`expr $pass + 1`
 	fi

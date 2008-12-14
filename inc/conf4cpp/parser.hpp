@@ -20,32 +20,6 @@ using namespace boost::spirit;
 
 namespace conf4cpp
 {
-    typedef map<string, type_t> tyinfo_map_t;
-    typedef map<string, var_t> value_map_t;
-
-    static bool type_mismatch(tyinfo_map_t& tm, value_map_t& vm, const string& key) {
-        vector<var_t> vec = boost::get<vector<var_t> >(vm[key]);
-        type_t typ = tm[key];
-
-        if (is_prim_type(typ)) {
-            if (vec.size() != 1) return true;
-            if (!apply_visitor(type_checker(vec[0]), typ)) return true;
-            vm[key] = vec[0];
-        } else {
-            if (vec.size() == 1 && is_vector(vec[0])) {
-                if (!apply_visitor(type_checker(vec[0]), typ)) return true;
-                vm[key] = vec[0];
-            } else {
-                if (!apply_visitor(type_checker(vm[key]), typ)) return true;
-            }
-        }
-        return false;
-    }
-
-    static bool out_of_range(tyinfo_map_t& tm, value_map_t& vm, const string& key) {
-        return !apply_visitor(range_checker(vm[key]), tm[key]);
-    }
-
     template <typename derived_T>
     struct base_config_parser : public grammar<base_config_parser<derived_T> >
     {
@@ -77,7 +51,8 @@ namespace conf4cpp
                     = keywords_p[var(self.current_keywd)=arg1]
                     >> item_redefined_e(eps_p(bind(&item_redefined)(var(self.defined_symbols),var(self.current_keywd))==false))
                     >> '='
-                    >> value_p[insert_at_a(self.vmap,self.current_keywd,value_p.val)]
+                    >> value_p[var(value_p.val)=bind(&normalize)(var(self.timap),var(self.current_keywd),var(value_p.val))]
+                              [insert_at_a(self.vmap,self.current_keywd,value_p.val)]
                     >> type_mismatch_e(eps_p(bind(&type_mismatch)(var(self.timap),var(self.vmap),var(self.current_keywd))==false))
                     >> out_of_range_e(eps_p(bind(&out_of_range)(var(self.timap),var(self.vmap),var(self.current_keywd))==false));
             }

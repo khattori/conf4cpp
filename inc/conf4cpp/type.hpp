@@ -42,23 +42,65 @@ namespace conf4cpp
 	ti_enum_t(const string& eid_) : eid(eid_) {}
 	string eid;
     };
+
     typedef boost::make_recursive_variant<
 	ti_atomic_t,
 	ti_enum_t,                              // enum type
 	pair<int, boost::recursive_variant_>,   // vector type 
 	vector<boost::recursive_variant_>       // tuple type
     >::type type_t;
-    const int VAR_VECTOR = -1;
     enum { IS_ATOM_T, IS_ENUM_T, IS_VECT_T, IS_TUPLE_T };
+    const int VAR_VECTOR = -1;
+    typedef pair<int,type_t> ti_vect_t;
+    typedef vector<type_t> ti_tuple_t;
 
-    inline bool is_atomic_type(const type_t& typ) { return typ.which() == IS_ATOM_T; }
-    inline bool is_enum_type(const type_t& typ)   { return typ.which() == IS_ENUM_T; }
-    inline bool is_vector_type(const type_t& typ) { return typ.which() == IS_VECT_T; }
+    inline bool is_atomic_type(const type_t& typ) { return typ.which() == IS_ATOM_T;  }
+    inline bool is_enum_type(const type_t& typ)   { return typ.which() == IS_ENUM_T;  }
+    inline bool is_vector_type(const type_t& typ) { return typ.which() == IS_VECT_T;  }
     inline bool is_tuple_type(const type_t& typ)  { return typ.which() == IS_TUPLE_T; }
 
     inline bool is_prim_type(const type_t& typ) { return typ.which() < 2; }
     inline bool is_comp_type(const type_t& typ) { return !is_prim_type(typ); }
+
     inline ti_atomic_t get_atom(const type_t& typ) { return boost::get<ti_atomic_t>(typ); }
+
+    //
+    // 必要に応じて，uint型の値をint型に正規化する
+    //
+    class var_normalizer : public boost::static_visitor<var_t>
+    {
+    public:
+	var_normalizer(const var_t& v) : v_(v) {}
+	var_t operator() (ti_atomic_t ta) const {
+	    if (ta == TI_INT && is_uint(v_) && boost::get<unsigned int>(v_) <= INT_MAX) {
+                return int(boost::get<unsigned int>(v_));
+            }
+            return v_;
+	}
+	var_t operator() (ti_enum_t te) const { return v_; }
+	var_t operator() (ti_vect_t tp) const {
+	    if (!is_vector(v_)) return v_;
+	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
+            vector<var_t> result;
+	    for (unsigned int i = 0; i < vec.size(); i++) {
+		result.push_back(apply_visitor(var_normalizer(vec[i]), tp.second));
+	    }
+	    return result;
+	}
+	var_t operator() (ti_tuple_t tv) const {
+	    if (!is_vector(v_)) return v_;
+	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
+	    if (vec.size() != tv.size()) return v_;
+            vector<var_t> result;
+	    for (unsigned int i = 0; i < tv.size(); i++) {
+		result.push_back(apply_visitor(var_normalizer(vec[i]), tv[i]));
+	    }
+	    return result;
+	}
+    private:
+	var_t v_;
+    };
+
     class type_checker : public boost::static_visitor<bool>
     {
     public:
@@ -66,8 +108,7 @@ namespace conf4cpp
 	bool operator() (ti_atomic_t ta) const {
 	    switch (ta) {
 	    case TI_BOOL:     if (is_bool(v_))     return true; break;
-	    case TI_INT:      if (is_int(v_)||(is_uint(v_) && boost::get<unsigned int>(v_) <= INT_MAX))
-                                                   return true; break;
+	    case TI_INT:      if (is_int(v_))      return true; break;
 	    case TI_UINT:     if (is_uint(v_))     return true; break;
 	    case TI_DOUBLE:   if (is_double(v_))   return true; break;
 	    case TI_STRING:   if (is_string(v_))   return true; break;
@@ -84,16 +125,16 @@ namespace conf4cpp
 	    if (p.first != te.eid) return false;
 	    return true;
 	}
-	bool operator() (pair<unsigned int, type_t> tp) const {
+	bool operator() (ti_vect_t tp) const {
 	    if (!is_vector(v_)) return false;
 	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
-	    if (tp.first > 0 && tp.first != vec.size()) return false;
+	    if (tp.first >= 0 && tp.first != static_cast<int>(vec.size())) return false;
 	    for (unsigned int i = 0; i < vec.size(); i++) {
 		if (!apply_visitor(type_checker(vec[i]), tp.second)) return false;
 	    }
 	    return true;
 	}
-	bool operator() (vector<type_t> tv) const {
+	bool operator() (ti_tuple_t tv) const {
 	    if (!is_vector(v_)) return false;
 	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
 	    if (vec.size() != tv.size()) return false;
@@ -105,6 +146,7 @@ namespace conf4cpp
     private:
 	var_t v_;
     };
+
     class range_checker : public boost::static_visitor<bool>
     {
     public:
@@ -113,18 +155,18 @@ namespace conf4cpp
             if (!ta.c) return true;
 	    switch (ta) {
 	    case TI_BOOL:     return true;
-	    case TI_INT:      return (is_bool(ta.c->first) ||
-                                      (is_uint(ta.c->first) && is_uint(v_) && boost::get<unsigned int>(ta.c->first) <= boost::get<unsigned int>(v_)) ||
-                                      (is_int(v_) && boost::get<int>(ta.c->first) <= boost::get<int>(v_)) ||
-                                      (is_uint(v_) && boost::get<int>(ta.c->first)))
-                                  && (is_bool(ta.c->second) ||
-                                      (is_int(ta.c->second) && is_int(v_) && boost::get<int>(ta.c->second) >= boost::get<int>(v_)) ||
-                                      (is_uint(v_) && boost::get<unsigned int>(ta.c->second) >= boost::get<unsigned int>(v_)) ||
-                                      (is_int(v_) && boost::get<unsigned int>(ta.c->second)));
-	    case TI_UINT:     return (is_bool(ta.c->first)  || boost::get<unsigned int>(ta.c->first)  <= boost::get<unsigned int>(v_))
-                                  && (is_bool(ta.c->second) || boost::get<unsigned int>(ta.c->second) >= boost::get<unsigned int>(v_));
-	    case TI_DOUBLE:   return (is_bool(ta.c->first)  || boost::get<double>(ta.c->first)  <= boost::get<double>(v_))
-                                  && (is_bool(ta.c->second) || boost::get<double>(ta.c->second) >= boost::get<double>(v_));
+	    case TI_INT:
+                assert(is_int(v_));
+                return (is_bool(ta.c->first)  || boost::get<int>(ta.c->first)  <= boost::get<int>(v_))
+                    && (is_bool(ta.c->second) || boost::get<int>(ta.c->second) >= boost::get<int>(v_));
+	    case TI_UINT:
+                assert(is_uint(v_));
+                return (is_bool(ta.c->first)  || boost::get<unsigned int>(ta.c->first)  <= boost::get<unsigned int>(v_))
+                    && (is_bool(ta.c->second) || boost::get<unsigned int>(ta.c->second) >= boost::get<unsigned int>(v_));
+	    case TI_DOUBLE:
+                assert(is_double(v_));
+                return (is_bool(ta.c->first)  || boost::get<double>(ta.c->first)  <= boost::get<double>(v_))
+                    && (is_bool(ta.c->second) || boost::get<double>(ta.c->second) >= boost::get<double>(v_));
 	    case TI_STRING:   return true;
             case TI_TIME:     return true;
             case TI_IPV4ADDR: return true;
@@ -134,15 +176,15 @@ namespace conf4cpp
 	    return false;
 	}
 	bool operator() (ti_enum_t te) const { return true; }
-	bool operator() (pair<unsigned int, type_t> tp) const {
+	bool operator() (ti_vect_t tp) const {
 	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
-	    if (tp.first > 0 && tp.first != vec.size()) return false;
+	    if (tp.first >= 0 && tp.first != static_cast<int>(vec.size())) return false;
 	    for (unsigned int i = 0; i < vec.size(); i++) {
 		if (!apply_visitor(range_checker(vec[i]), tp.second)) return false;
 	    }
 	    return true;
 	}
-	bool operator() (vector<type_t> tv) const {
+	bool operator() (ti_tuple_t tv) const {
 	    vector<var_t> vec = boost::get<vector<var_t> >(v_);
 	    for (unsigned int i = 0; i < tv.size(); i++) {
 		if (!apply_visitor(range_checker(vec[i]), tv[i])) return false;
@@ -152,8 +194,27 @@ namespace conf4cpp
     private:
 	var_t v_;
     };
-    inline bool range_check(const type_t& typ, const var_t& var) {
-        return apply_visitor(range_checker(var), typ);
+
+    typedef map<string, type_t> tyinfo_map_t;
+    typedef map<string, var_t> value_map_t;
+
+    static var_t normalize(tyinfo_map_t& tm, const string& key, const var_t& v) {
+        vector<var_t> vec = boost::get<vector<var_t> >(v);
+        type_t typ = tm[key];
+        // {{a,b,c}}や{{a}}, {{}}のケースか，primitive型で{a}などのケース
+        if (vec.size() == 1 && (is_prim_type(typ) || is_vector(vec[0]))) {
+            return apply_visitor(var_normalizer(vec[0]), typ);
+        }
+        // {a}, {a,b,c}, {{a},{b}}のケース
+        return apply_visitor(var_normalizer(v), typ);
+    }
+
+    static bool type_mismatch(tyinfo_map_t& tm, value_map_t& vm, const string& key) {
+        return !apply_visitor(type_checker(vm[key]), tm[key]);
+    }
+
+    static bool out_of_range(tyinfo_map_t& tm, value_map_t& vm, const string& key) {
+        return !apply_visitor(range_checker(vm[key]), tm[key]);
     }
 }
 

@@ -94,71 +94,45 @@ struct confdef_g : public grammar<confdef_g>
         }
     };
 
-    static bool chk_defval(const ti_atomic_t& ta, const var_t& var) {
-        switch (ta.t) {
-        case TI_DOUBLE:   return is_double(var);
-        case TI_INT:      return is_int(var)||(is_uint(var) && boost::get<unsigned int>(var) <= INT_MAX);
-        case TI_UINT:     return is_uint(var);
-        case TI_STRING:   return is_string(var);
-        case TI_BOOL:     return is_bool(var);
-        case TI_TIME:     return is_time(var);
-        case TI_IPV4ADDR: return is_ipv4addr(var);
-        case TI_IPV6ADDR: return is_ipv6addr(var);
-        }
-        return false;
-    }
-
-    static bool chk_defran(const ti_atomic_t& ta, const var_t& var) {
-        if (!ta.c) return true;
-        pair<var_t,var_t> ran = *ta.c;
-        switch (ta.t) {
-        case TI_DOUBLE:   return (is_bool(ran.first)  || boost::get<double>(ran.first)  <= boost::get<double>(var))
-                              && (is_bool(ran.second) || boost::get<double>(ran.second) >= boost::get<double>(var));
-        case TI_INT:      return (is_bool(ran.first)
-                                  || (is_int(ran.first) && is_int(var) && boost::get<int>(ran.first) <= boost::get<int>(var))
-                                  || (is_int(ran.first) && is_uint(var) && boost::get<int>(ran.first) <= (int)boost::get<unsigned int>(var))
-                                  || (is_uint(ran.first) && is_uint(var) && boost::get<unsigned int>(ran.first) <= boost::get<unsigned int>(var)))
-                              && (is_bool(ran.second)
-                                  || (is_int(ran.second) && is_int(var) && boost::get<int>(ran.second) >= boost::get<int>(var))
-                                  || (is_uint(ran.second) && is_int(var) && (int)boost::get<unsigned int>(ran.second) >= boost::get<int>(var))
-                                  || (is_uint(ran.second) && is_uint(var) && boost::get<unsigned int>(ran.second) >= boost::get<unsigned int>(var)));
-        case TI_UINT:     return (is_bool(ran.first)  || boost::get<unsigned int>(ran.first)  <= boost::get<unsigned int>(var))
-                              && (is_bool(ran.second) || boost::get<unsigned int>(ran.second) >= boost::get<unsigned int>(var));
+    static bool chk_range(const ti_atomic_t& atyp) {
+        switch (atyp.t) {
+        case TI_INT:
+            if (is_int(atyp.c->first) && is_int(atyp.c->second))
+                return boost::get<int>(atyp.c->first) <= boost::get<int>(atyp.c->second);
+            break;
+        case TI_UINT:
+            if (is_uint(atyp.c->first) && is_uint(atyp.c->second))
+                return boost::get<unsigned int>(atyp.c->first) <= boost::get<unsigned int>(atyp.c->second);
+            break;
+        case TI_DOUBLE:
+            if (is_double(atyp.c->first) && is_double(atyp.c->second))
+                return boost::get<double>(atyp.c->first) <= boost::get<double>(atyp.c->second);
+	    break;
         default:
             assert(false);
         }
-        return false;
+        return true;
     }
 
-    static bool chk_enumelem(const type_t& ty1, const type_t& ty2) {
-        ti_enum_t te1 = boost::get<ti_enum_t>(ty1);
-        ti_enum_t te2 = boost::get<ti_enum_t>(ty2);
-        return te1.eid == te2.eid;
-    }
-    static bool chk_range(const pair<var_t, var_t>& range) {
-        if (is_bool(range.first)   && is_bool(range.second))   return false;
-        if (is_bool(range.first)   || is_bool(range.second))   return true;
-        if (is_double(range.first) && is_double(range.second)) return boost::get<double>(range.first)       <= boost::get<double>(range.second);
-        if (is_int(range.first)    && is_int(range.second))    return boost::get<int>(range.first)          <= boost::get<int>(range.second);
-        if (is_uint(range.first)   && is_uint(range.second))   return boost::get<unsigned int>(range.first) <= boost::get<unsigned int>(range.second);
-        if (is_int(range.first)    && is_uint(range.second))   return true;
-        return false;
-    }
-
-    static bool chk_rantype(const ti_atomic_t& atyp) {
+    static bool chk_rantype(ti_atomic_t& atyp) {
         switch (atyp.t) {
         case TI_INT:
-            return
-                (is_bool(atyp.c->first)  || is_int(atyp.c->first)  || is_uint(atyp.c->first)) &&
-                (is_bool(atyp.c->second) || is_int(atyp.c->second) || (is_uint(atyp.c->second) && boost::get<unsigned int>(atyp.c->second) <= INT_MAX));
+            // normalize to int 
+            if (is_uint(atyp.c->first) && boost::get<unsigned int>(atyp.c->first) <= INT_MAX)
+                atyp.c->first = int(boost::get<unsigned int>(atyp.c->first));
+            if (is_uint(atyp.c->second) && boost::get<unsigned int>(atyp.c->second) <= INT_MAX)
+                atyp.c->second = int(boost::get<unsigned int>(atyp.c->second));
+            return !(is_bool(atyp.c->first) && is_bool(atyp.c->second))
+                && (is_bool(atyp.c->first)  || is_int(atyp.c->first))
+                && (is_bool(atyp.c->second) || is_int(atyp.c->second));
         case TI_UINT:
-            return
-                (is_bool(atyp.c->first)  || is_uint(atyp.c->first)) &&
-                (is_bool(atyp.c->second) || is_uint(atyp.c->second));
+            return !(is_bool(atyp.c->first) && is_bool(atyp.c->second))
+                && (is_bool(atyp.c->first)  || is_uint(atyp.c->first))
+                && (is_bool(atyp.c->second) || is_uint(atyp.c->second));
         case TI_DOUBLE:
-            return
-                (is_bool(atyp.c->first)  || is_double(atyp.c->first)) &&
-                (is_bool(atyp.c->second) || is_double(atyp.c->second));
+            return !(is_bool(atyp.c->first) && is_bool(atyp.c->second))
+                && (is_bool(atyp.c->first)  || is_double(atyp.c->first))
+                && (is_bool(atyp.c->second) || is_double(atyp.c->second));
         default:
             return false;
         }
@@ -188,6 +162,7 @@ struct confdef_g : public grammar<confdef_g>
             assertion<string> typnm_redef_e("type name redefined");
             assertion<string> symbol_redef_e("symbol redefined");
             assertion<string> invalid_range_e("invalid range");
+            assertion<string> invalid_rantype_e("invalid range type");
             assertion<string> defval_typemismatch_e("default value is type mismatch");
             assertion<string> defval_outofrange_e("default value is out of range");
             assertion<string> parse_failed_e("parser error");
@@ -217,7 +192,8 @@ struct confdef_g : public grammar<confdef_g>
                     >> ':'
                     >> texp_r[insert_at_a(self.itemtyp_map,self.cur_sym)]
                     >> !('='
-                         >> value_p[insert_at_a(self.itemdef_map,self.cur_sym,value_p.val)]
+                         >> value_p[var(value_p.val)=bind(&normalize)(var(self.itemtyp_map),var(self.cur_sym),var(value_p.val))]
+                                   [insert_at_a(self.itemdef_map,self.cur_sym,value_p.val)]
                          >> defval_typemismatch_e(eps_p(bind(&type_mismatch)(var(self.itemtyp_map),var(self.itemdef_map),var(self.cur_sym))==false))
                          >> defval_outofrange_e(eps_p(bind(&out_of_range)(var(self.itemtyp_map),var(self.itemdef_map),var(self.cur_sym))==false))
                         )
@@ -248,12 +224,14 @@ struct confdef_g : public grammar<confdef_g>
 //                    >> !( '(' >> uint_p >> ')' )
 	        | atomic_texp_r[postfix_texp_r.val=arg1];
 	    list_type_r
-		= str_p("list")[list_type_r.val=VAR_VECTOR] >> !('[' >> uint_p[list_type_r.val=construct_<int>(arg1)] >> ']');
+		= str_p("list")[list_type_r.val=VAR_VECTOR] >> !('[' >> uint_p[list_type_r.val=static_cast_<int>(arg1)] >> ']');
 	    atomic_texp_r
 		= sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_TYPENAME)[var(self.cur_atyp)=bind(&get_atom)(var(self.cur_type.second))]
                     >> !('[' >> constraints_r[var(self.cur_atyp)=construct_<ti_atomic_t>(var(self.cur_atyp.t),arg1)]
-                         >> (eps_p(bind(&chk_rantype)(var(self.cur_atyp))) | invalid_range_e(nothing_p)) >> ']')
+                         >> (eps_p(bind(&chk_rantype)(var(self.cur_atyp))) | invalid_rantype_e(nothing_p)) >> ']'
+                         >> (eps_p(bind(&chk_range)(var(self.cur_atyp))) | invalid_range_e(nothing_p))
+                        )
                     >> eps_p[atomic_texp_r.val=var(self.cur_atyp)]
 		| sym_p[var(self.cur_type)=arg1]
                     >> eps_p(var(self.cur_type.first)==SYM_ENUM)[atomic_texp_r.val=var(self.cur_type.second)]
@@ -263,8 +241,8 @@ struct confdef_g : public grammar<confdef_g>
                 = eps_p[var(self.cur_range)=construct_<pair<var_t,var_t> >(false,false)] >>
                 !( strict_real_p[var(self.cur_range.first)=arg1] | uint_p[var(self.cur_range.first)=arg1] | int_p[var(self.cur_range.first)=arg1] ) >>
                 '~' >> 
-                !( strict_real_p[var(self.cur_range.second)=arg1] | uint_p[var(self.cur_range.second)=arg1] | int_p[var(self.cur_range.second)=arg1]) >>
-                (eps_p(bind(&chk_range)(var(self.cur_range)))[constraints_r.val=var(self.cur_range)] | invalid_range_e(nothing_p));
+                !( strict_real_p[var(self.cur_range.second)=arg1] | uint_p[var(self.cur_range.second)=arg1] | int_p[var(self.cur_range.second)=arg1] ) >>
+                eps_p[constraints_r.val=var(self.cur_range)];
 
 	    id_r
 		= lexeme_d[(alpha_p|'_') >> +(alnum_p|'_')];
@@ -297,12 +275,12 @@ struct confdef_g : public grammar<confdef_g>
     mutable bool cur_req, cur_con;
     mutable pair<symtype_t,type_t> cur_type;
     mutable ti_atomic_t cur_atyp;
-    mutable pair<var_t, var_t> cur_range;
+    mutable pair<var_t,var_t> cur_range;
     mutable vector<string> elem_list;
     mutable tyinfo_map_t itemtyp_map;
     mutable value_map_t itemdef_map;
     mutable enum_map_t enumelem_map;
-    mutable map<string, bool> itemreq_map, itemcon_map;
+    mutable map<string,bool> itemreq_map, itemcon_map;
     mutable string conf_name;
 };
 

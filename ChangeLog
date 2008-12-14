@@ -1,5 +1,7 @@
 2008-12-14  Kenta HATTORI  <hattori@bach.tatta.org>
 
+	* conf4cpp-0.0.6 リリース
+
 	* 生成コードのコピーコンストラクタ，代入演算子をプライベートとした
 
 	* int型におけるuintの処理を簡単にするためパース直後に正規化処理を

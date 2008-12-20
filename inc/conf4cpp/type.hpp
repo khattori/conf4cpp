@@ -75,6 +75,12 @@ namespace conf4cpp
 	    if (ta == TI_INT && is_uint(v_) && boost::get<unsigned int>(v_) <= INT_MAX) {
                 return int(boost::get<unsigned int>(v_));
             }
+            if (ta == TI_DOUBLE && is_uint(v_)) {
+                return double(boost::get<unsigned int>(v_));
+            }
+            if (ta == TI_DOUBLE && is_int(v_)) {
+                return double(boost::get<int>(v_));
+            }
             return v_;
 	}
 	var_t operator() (ti_enum_t te) const { return v_; }

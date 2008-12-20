@@ -1,3 +1,9 @@
+2008-12-20  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* 名前空間をサポート
+
+	* uintからdouble, intからdoubleへの暗黙の型変換を追加
+
 2008-12-14  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* conf4cpp-0.0.6 リリース

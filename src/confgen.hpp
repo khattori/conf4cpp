@@ -24,12 +24,13 @@ class confgen
 {
 public:
     confgen(confdef_g& g)
-        : conf_name_(g.conf_name),
+        : conf_name_(g.conf_name[0]),
+          namespace_(++g.conf_name.begin(), g.conf_name.end()),
           itemtyp_map_(g.itemtyp_map),
           itemdef_map_(g.itemdef_map),
           itemreq_map_(g.itemreq_map),
           itemcon_map_(g.itemcon_map),
-          enumelem_map_(g.enumelem_map) {}
+          enumelem_map_(g.enumelem_map) { }
 
     void output_interface(ostream& os);
     void output_implementation(ostream& os);
@@ -41,6 +42,8 @@ public:
 private:
     static void output_file_header(ostream& os);
 
+    void output_namespace_begin(ostream& os);
+    void output_namespace_end(ostream& os);
     void output_interface_enumdefs(ostream& os);
     void output_interface_accessors(ostream& os);
     void output_interface_initializers(ostream& os);
@@ -59,6 +62,7 @@ private:
     void output_implementation_config_dump(ostream& os);
 
     const string conf_name_;
+    const vector<string> namespace_;
     const tyinfo_map_t itemtyp_map_;
     const value_map_t itemdef_map_;
     const map<string, bool> itemreq_map_, itemcon_map_;

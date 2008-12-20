@@ -504,6 +504,7 @@ confgen::output_file_header(ostream& os)
 void
 confgen::output_interface(ostream& os)
 {
+    output_namespace_begin(os);
     os << "//=============================================================================" << endl
        << "// [" << conf_name_ << "]" << endl
        << "//" << endl;
@@ -536,6 +537,7 @@ confgen::output_interface(ostream& os)
     output_interface_members(os);
 
     os << "};" << endl;
+    output_namespace_end(os);
 }
 
 void
@@ -627,6 +629,7 @@ confgen::output_interface_members(ostream& os)
 void
 confgen::output_implementation(ostream& os)
 {
+    output_namespace_begin(os);
     os << "//=============================================================================" << endl
        << "// [" << conf_name_ << "_parser]" << endl
        << "//" << endl;
@@ -647,6 +650,7 @@ confgen::output_implementation(ostream& os)
     output_implementation_config_rngchks(os);
     output_implementation_config_enum2str(os);
     output_implementation_config_dump(os);
+    output_namespace_end(os);
 }
 void
 confgen::output_implementation_keywords(ostream& os)
@@ -885,3 +889,23 @@ confgen::output_implementation_config_dump(ostream& os)
     os << "\tos << \"}\" << endl;" << endl;
     os << "}" << endl;
 }
+
+void
+confgen::output_namespace_begin(ostream& os) {
+    for (vector<string>::const_reverse_iterator iter = namespace_.rbegin();
+         iter != namespace_.rend();
+         ++iter) {
+        os << "namespace " << *iter << " { ";
+    }
+    os << endl;
+}
+void
+confgen::output_namespace_end(ostream& os) {
+    for (vector<string>::const_reverse_iterator iter = namespace_.rbegin();
+         iter != namespace_.rend();
+         ++iter) {
+        os << "} /*" << *iter << "*/ ";
+    }
+    os << endl;
+}
+

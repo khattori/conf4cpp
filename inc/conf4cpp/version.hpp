@@ -8,6 +8,6 @@
 #ifndef VERSION_HPP
 #define VERSION_HPP
 
-#define CONF4CPP_VERSION "0.0.6"
+#define CONF4CPP_VERSION "0.0.7"
 
 #endif /* VERSION_HPP */

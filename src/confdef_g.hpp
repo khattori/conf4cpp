@@ -31,27 +31,22 @@ struct confdef_g : public grammar<confdef_g>
     struct string_val  : closure<string_val,string>               { member1 val; };
     struct strvec_val  : closure<strvec_val,vector<string> >      { member1 val; };
     enum symtype_t {
-        SYM_RESERVED, SYM_TYPENAME, SYM_CONFIG, SYM_ENUM, SYM_ELEM, SYM_ITEM, 
+        SYM_TYPENAME, SYM_ENUM, SYM_ELEM, SYM_ITEM
     };
+
     struct sym_s : symbols<pair<symtype_t,type_t> >
     {
         sym_s() {
             add
-                ("enum"     , make_pair(SYM_RESERVED, TI_BOOL))
-                ("config"   , make_pair(SYM_RESERVED, TI_BOOL))
-                ("required" , make_pair(SYM_RESERVED, TI_BOOL))
-                ("optional" , make_pair(SYM_RESERVED, TI_BOOL))
-                ("const"    , make_pair(SYM_RESERVED, TI_BOOL))
-                ("mutable"  , make_pair(SYM_RESERVED, TI_BOOL))
-                ("bool"     , make_pair(SYM_TYPENAME, TI_BOOL))
-                ("real"     , make_pair(SYM_TYPENAME, TI_DOUBLE))
-                ("int"      , make_pair(SYM_TYPENAME, TI_INT))
-                ("uint"     , make_pair(SYM_TYPENAME, TI_UINT))
-                ("string"   , make_pair(SYM_TYPENAME, TI_STRING))
-                ("time"     , make_pair(SYM_TYPENAME, TI_TIME))
-                ("ipv4addr" , make_pair(SYM_TYPENAME, TI_IPV4ADDR))
-                ("ipv6addr" , make_pair(SYM_TYPENAME, TI_IPV6ADDR))
-                ("list"     , make_pair(SYM_TYPENAME, TI_BOOL))
+                ("bool"             , make_pair(SYM_TYPENAME, TI_BOOL))
+                ("real"             , make_pair(SYM_TYPENAME, TI_DOUBLE))
+                ("int"              , make_pair(SYM_TYPENAME, TI_INT))
+                ("uint"             , make_pair(SYM_TYPENAME, TI_UINT))
+                ("string"           , make_pair(SYM_TYPENAME, TI_STRING))
+                ("time"             , make_pair(SYM_TYPENAME, TI_TIME))
+                ("ipv4addr"         , make_pair(SYM_TYPENAME, TI_IPV4ADDR))
+                ("ipv6addr"         , make_pair(SYM_TYPENAME, TI_IPV6ADDR))
+                ("list"             , make_pair(SYM_TYPENAME, TI_BOOL))
                 ;
         }
     };
@@ -130,6 +125,15 @@ struct confdef_g : public grammar<confdef_g>
                 && (is_bool(atyp.c->first)  || is_uint(atyp.c->first))
                 && (is_bool(atyp.c->second) || is_uint(atyp.c->second));
         case TI_DOUBLE:
+            // normalize to double
+            if (is_uint(atyp.c->first))
+                atyp.c->first = double(boost::get<unsigned int>(atyp.c->first));
+            else if (is_int(atyp.c->first))
+                atyp.c->first = double(boost::get<int>(atyp.c->first));
+            if (is_uint(atyp.c->second))
+                atyp.c->second = double(boost::get<unsigned int>(atyp.c->second));
+            else if (is_int(atyp.c->second))
+                atyp.c->second = double(boost::get<int>(atyp.c->second));
             return !(is_bool(atyp.c->first) && is_bool(atyp.c->second))
                 && (is_bool(atyp.c->first)  || is_double(atyp.c->first))
                 && (is_bool(atyp.c->second) || is_double(atyp.c->second));
@@ -143,17 +147,18 @@ struct confdef_g : public grammar<confdef_g>
 
     template <typename ScannerT> struct definition
     {
-	rule<ScannerT> config_r, spec_r, itemdef_r, enumdef_r;
+	rule<ScannerT> config_r, confname_r, spec_r, itemdef_r, enumdef_r;
 	rule<ScannerT,type_val::context_t> texp_r, atomic_texp_r;
         rule<ScannerT,typs_val::context_t> compound_texp_r;
-        rule<ScannerT,typuint_val::context_t> postfix_texp_r ;
+        rule<ScannerT,typuint_val::context_t> postfix_texp_r;
         rule<ScannerT,int_val::context_t> list_type_r;
         rule<ScannerT,pairvar_val::context_t> constraints_r;
 	rule<ScannerT> mandatory_r, qualifier_r;
         rule<ScannerT> new_sym, id_r;
 	rule<ScannerT,strvec_val::context_t> elemseq_r;
-        rule<ScannerT,string_val::context_t> newconf_sym, newitem_sym, newenum_sym, newelem_sym;
+        rule<ScannerT,string_val::context_t> conf_sym, newitem_sym, newenum_sym, newelem_sym;
         value_parser value_p;
+        symbols<> rsvwd_s;
 	sym_s sym_p;
 
         definition(confdef_g const& self) {
@@ -173,15 +178,31 @@ struct confdef_g : public grammar<confdef_g>
             using phoenix::bind;
 	    using phoenix::construct_;
 	    using phoenix::static_cast_;
+
+            rsvwd_s = "config", "enum", "required", "optional", "const", "mutable", "true", "false",
+                "bool", "real", "int",  "uint", "string", "time", "ipv4addr", "ipv6addr", "list",
+                // C++ reserved words
+                "asm", /*bool*/ "break", "case", "catch", "char", "class", /*const*/ "const_cast",
+                "continue", "default", "delete", "do", /*double*/ "dynamic_cast", "else", /*enum*/
+                "explicit", "export", "extern", /*false*/ "float", "for", "friend", "goto", "if",
+                "inline", /*int*/ "long", /*mutable*/ "namespace", "new", "operator", "private",
+                "protected", "public", "register", "reinterpret_cast", "return", "short", "signed",
+                "sizeof", "static", "static_cast", "struct", "switch", "template", "this", "throw",
+                /*true*/ "try", "typedef", "typeid", "typename", "union", "unsigned", "using",
+                "virtual", "void", "volatile", "wchar_t", "while"
+                ;
+
             //
-            // <config>    ::= config { <spec>* }
+            // <config>    ::= { config <id> ::{ <spec>* }
             // <spec>      ::= <enumdef> | <itemdef>
             // <itemdef>   ::= <mandatory>? <qualifire>? <id> <compound_type> ;
             // <enumdef>   ::= enum <id> { <id> (, <id>)* }
             // <mandatory> ::= required | optional
             //
             config_r
-                = lexeme_d[str_p("config") >> blank_p] >> newconf_sym[var(self.conf_name)=arg1] >> '{' >> *spec_r >> '}' >> end_p;
+                = lexeme_d[str_p("config") >> blank_p] >> confname_r >> '{' >> *spec_r >> '}' >> end_p;
+            confname_r
+                = conf_sym[push_front_a(self.conf_name)] >> *( lexeme_d[str_p("::")] >> conf_sym[push_front_a(self.conf_name)] );
 	    spec_r
 		= (enumdef_r | itemdef_r);
 
@@ -245,14 +266,13 @@ struct confdef_g : public grammar<confdef_g>
                 eps_p[constraints_r.val=var(self.cur_range)];
 
 	    id_r
-		= lexeme_d[(alpha_p|'_') >> +(alnum_p|'_')];
+		= ( lexeme_d[(alpha_p|'_') >> +(alnum_p|'_')] - rsvwd_s ) | ( rsvwd_s >> rsvwd_redef_e(nothing_p) );
             new_sym
                 = (id_r - sym_p) | ( sym_p[var(self.cur_type)=arg1]
-                                     >> ( ( eps_p(var(self.cur_type.first)==SYM_RESERVED) >> rsvwd_redef_e(nothing_p) ) |
-                                          ( eps_p(var(self.cur_type.first)==SYM_TYPENAME) >> typnm_redef_e(nothing_p) ) |
+                                     >> ( ( eps_p(var(self.cur_type.first)==SYM_TYPENAME) >> typnm_redef_e(nothing_p) ) |
                                           symbol_redef_e(nothing_p) ) );
-            newconf_sym
-                = new_sym[add_sym<SYM_CONFIG>(sym_p)][newconf_sym.val=construct_<string>(arg1,arg2)];
+            conf_sym
+                = id_r[conf_sym.val=construct_<string>(arg1,arg2)];
             newitem_sym
                 = new_sym[add_sym<SYM_ITEM>(sym_p)][newitem_sym.val=construct_<string>(arg1,arg2)];
             newenum_sym
@@ -281,7 +301,7 @@ struct confdef_g : public grammar<confdef_g>
     mutable value_map_t itemdef_map;
     mutable enum_map_t enumelem_map;
     mutable map<string,bool> itemreq_map, itemcon_map;
-    mutable string conf_name;
+    mutable deque<string> conf_name;
 };
 
 #endif /* CONFDEF_HPP */

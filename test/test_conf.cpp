@@ -33,10 +33,10 @@ int main(int argc, char* args[])
 	return -1;
     }
 
-    test_conf conf(args[1]);
+    test::inner_test::test_conf conf(args[1]);
     assert(conf.int_val()==-123);
     assert(conf.bool_val()==false);
-    assert(conf.week_val()==test_conf::SUN);
+    assert(conf.week_val()==test::inner_test::test_conf::SUN);
     assert(!conf.has_string_val());
     assert(conf.has_real_val());
     assert(conf.real_val()==-32134.5643);
@@ -51,6 +51,14 @@ int main(int argc, char* args[])
     assert(conf.set_int1_list(int1_list_val)==false);
     assert(conf.int1_list().size()==1);
     assert(conf.int1_list()[0]==10);
+    vector<int> int1_list_val2;
+    int1_list_val2.push_back(3);
+    assert(conf.set_int1_list(int1_list_val2)==true);
+    assert(conf.int1_list().size()==1);
+    assert(conf.int1_list()[0]==3);
+    assert(conf.set("int1_list={1}")==true);
+    assert(conf.int1_list().size()==1);
+    assert(conf.int1_list()[0]==1);
     assert(conf.bool9_list().size()==9);
     assert(conf.bool9_list()[8]==true);
     assert(conf.real_llist().size()==5);
@@ -61,9 +69,9 @@ int main(int argc, char* args[])
     assert(boost::get<1>(conf.rib_tuple())==5);
     assert(boost::get<2>(conf.rib_tuple())==true);
     assert(boost::get<0>(boost::get<0>(conf.string_tuple()))=="hoge");
-    assert(boost::get<0>(conf.week_fruits())==test_conf::MON);
+    assert(boost::get<0>(conf.week_fruits())==test::inner_test::test_conf::MON);
     assert(boost::get<1>(conf.week_fruits()).size()==4);
-    assert(boost::get<1>(conf.week_fruits())[0]==test_conf::Apple);
+    assert(boost::get<1>(conf.week_fruits())[0]==test::inner_test::test_conf::Apple);
 
     assert(!conf.has_int_defval());
     assert(!conf.has_int_defval2());

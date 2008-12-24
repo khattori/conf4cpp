@@ -1,4 +1,4 @@
-config sample_conf
+config sample::sample_conf
 #config config
 #configsample_conf
 {

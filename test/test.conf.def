@@ -1,4 +1,4 @@
-config test_conf {
+config test::inner_test::test_conf {
 	enum week_t { MON, TUE, WED, THU, FRI, SAT, SUN }
 	enum fruit_t { Apple, Orange, Peach, Lemon }
 

@@ -44,6 +44,7 @@ private:
 
     void output_namespace_begin(ostream& os);
     void output_namespace_end(ostream& os);
+    string get_namespace_qualifier();
     void output_interface_enumdefs(ostream& os);
     void output_interface_accessors(ostream& os);
     void output_interface_initializers(ostream& os);

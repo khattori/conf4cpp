@@ -8,7 +8,7 @@ int main(int argc, char* args[])
 	return -1;
     }
 
-    sample_conf conf(args[1]);
+    sample::sample_conf conf(args[1]);
     conf.dump(cout);
     return 0;
 }

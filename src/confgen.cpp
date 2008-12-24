@@ -179,6 +179,7 @@ struct vset_string : public boost::static_visitor<string>
     string operator() (ti_vect_t tp) const {
         string istr = "i"+lexical_cast<string>(lv);
         string ret("vector<var_t> " + lhs + "v = boost::get<vector<var_t> >(" + rhs + ");\n" + indent(lv-1));
+        ret += lhs + ".clear();\n" + indent(lv-1);
         ret += "for (unsigned int "+istr+" = 0; "+istr+" < " + lhs + "v.size(); "+istr+"++) {\n" + indent(lv);
         ret += get_typestr(tp.second) + " " + lhs + "iv;\n" + indent(lv);
         ret += apply_visitor(vset_string(eem,lhs+"iv",lhs+"v["+istr+"]",lv+1),tp.second) + "\n" + indent(lv);
@@ -462,8 +463,7 @@ confgen::output_implementation_header(ostream& os, const string& incfile)
     os << "#include <time.h>" << endl
        << "#include <netinet/in.h>" << endl
        << "#include <arpa/inet.h>" << endl;
-    os << "#include \"" << incfile << "\"" << endl
-       << "using namespace conf4cpp;" << endl;
+    os << "#include \"" << incfile << "\"" << endl;
 }
 
 void
@@ -504,12 +504,13 @@ confgen::output_file_header(ostream& os)
 void
 confgen::output_interface(ostream& os)
 {
-    output_namespace_begin(os);
+ 
     os << "//=============================================================================" << endl
        << "// [" << conf_name_ << "]" << endl
        << "//" << endl;
-    os << "struct " << conf_name_ << "_parser;" << endl;
-    os << "class " << conf_name_ << " : public conf4cpp::base_config<" << conf_name_ << "_parser>" << endl;
+    os << "namespace conf4cpp { struct " << conf_name_ << "_parser; }" << endl;
+    output_namespace_begin(os);
+    os << "class " << conf_name_ << " : public conf4cpp::base_config<conf4cpp::" << conf_name_ << "_parser>" << endl;
     os << "{" << endl;
 
     // output public members
@@ -629,7 +630,8 @@ confgen::output_interface_members(ostream& os)
 void
 confgen::output_implementation(ostream& os)
 {
-    output_namespace_begin(os);
+    // namespace conf4cpp
+    os << "namespace conf4cpp {" << endl;
     os << "//=============================================================================" << endl
        << "// [" << conf_name_ << "_parser]" << endl
        << "//" << endl;
@@ -638,11 +640,15 @@ confgen::output_implementation(ostream& os)
     output_implementation_keywords(os);
     output_implementation_constvals(os);
     output_implementation_parser_constructor(os);
-    os << "};" << endl;
-    os << "namespace conf4cpp {" << endl
+    os << "};" << endl
        << "\ttemplate<> base_config<" << conf_name_ << "_parser>::~base_config() { delete p; }" << endl
        << "\ttemplate<> bool base_config<" << conf_name_ << "_parser>::set(const string& itemdef) { return parse_itemdef(itemdef.c_str()); }" << endl
        << "}" << endl;
+
+    // user defined namespace
+    output_namespace_begin(os);
+    os << "using namespace conf4cpp;" << endl;
+    os << "using boost::make_tuple;" << endl;
     output_implementation_config_constructor(os);
     output_implementation_config_accessors(os);
     output_implementation_config_initializers(os);
@@ -683,7 +689,7 @@ confgen::output_implementation_constvals(ostream& os)
              ++iter) {
             for (unsigned int i = 0; i < enumelem_map_.find(iter->first)->second.size(); i++) {
                 os << "\t\t\t(\"" << enumelem_map_.find(iter->first)->second[i] << "\", make_pair(string(\""
-                   << iter->first << "\"), " << conf_name_ << "::" << enumelem_map_.find(iter->first)->second[i] << "))" << endl;
+                   << iter->first << "\"), " << get_namespace_qualifier() << conf_name_ << "::" << enumelem_map_.find(iter->first)->second[i] << "))" << endl;
             }
         }
         os << "\t\t\t;" << endl;
@@ -734,7 +740,6 @@ confgen::output_implementation_parser_constructor(ostream& os)
 void
 confgen::output_implementation_config_constructor(ostream& os)
 {
-    os << "using boost::make_tuple;" << endl;
     os << "// definition config constructor" << endl;
     os << conf_name_ << "::" << conf_name_ << "(const string& fname) : base_config<" << conf_name_ << "_parser>(fname)" << endl;
     os << "{" << endl;
@@ -907,5 +912,16 @@ confgen::output_namespace_end(ostream& os) {
         os << "} /*" << *iter << "*/ ";
     }
     os << endl;
+}
+
+string
+confgen::get_namespace_qualifier() {
+    string ret;
+    for (vector<string>::const_reverse_iterator iter = namespace_.rbegin();
+         iter != namespace_.rend();
+         ++iter) {
+        ret += *iter + "::";
+    }
+    return ret;
 }
 

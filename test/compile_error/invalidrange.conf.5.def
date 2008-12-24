@@ -1,3 +1,0 @@
-config invalid_range_conf {
-    foo : real[-100~10];
-}

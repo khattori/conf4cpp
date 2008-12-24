@@ -1,3 +1,11 @@
+2008-12-24  Kenta HATTORI  <hattori@bach.tatta.org>
+
+	* conf4cpp-0.0.7リリース
+
+	* C++の予約語の使用チェックを追加
+
+	* リスト型設定項目に対するset()操作のバグを修正
+
 2008-12-20  Kenta HATTORI  <hattori@bach.tatta.org>
 
 	* 名前空間をサポート
